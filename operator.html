@@ -2626,6 +2626,104 @@ footer.colophon .mono { color: var(--ink-dim); }
       self.qsos = OP.store.getJSON("log", []);
       var wrap = el("div", "stack");
 
+      /* ---- QRZ callsign lookup (free, keyless: HamDB then Callook) ---- */
+      var qrz = el("div", "stack");
+      qrz.innerHTML =
+        '<div class="label">QRZ callsign lookup</div>' +
+        '<div class="row">' +
+          '<div class="field" style="flex:1 1 160px"><label>Callsign</label><input id="lg-qrz" type="text" placeholder="W1AW"></div>' +
+          '<div class="field" style="flex:0 0 auto"><label>&nbsp;</label><button class="btn primary" id="lg-qrz-go">QRZ</button></div>' +
+        '</div>';
+      var qrzOut = el("div"); qrzOut.id = "lg-qrz-out"; qrzOut.style.marginTop = "4px";
+      qrz.appendChild(qrzOut);
+      wrap.appendChild(qrz);
+      wrap.appendChild(el("hr", "divider"));
+
+      function qesc(s) { return ("" + s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+      function parseHamDB(data) {
+        var c = data && data.hamdb && data.hamdb.callsign;
+        if (!c) return null;
+        var status = data.hamdb.messages && data.hamdb.messages.status;
+        if (status === "NOT_FOUND" || ("" + (c.call || "")).toUpperCase() === "NOT_FOUND") return null;
+        return {
+          call: c.call, name: ((c.fname || "") + " " + (c.name || "")).trim(),
+          cls: c.class, status: c.status === "A" ? "Active" : (c.status || ""),
+          addr: c.addr1, city: c.addr2, state: c.state, zip: c.zip, country: c.country,
+          grid: c.grid, lat: parseFloat(c.lat), lon: parseFloat(c.lon), expires: c.expires
+        };
+      }
+      function parseCallook(data) {
+        if (!data || data.status === "INVALID") return null;
+        var cur = data.current || {}, addr = data.address || {}, loc = data.location || {}, oi = data.otherInfo || {};
+        if (!(cur.callsign || data.name)) return null;
+        return {
+          call: cur.callsign || "", name: data.name || "",
+          cls: cur.operClass || "", status: data.status || "",
+          addr: addr.line1, city: addr.line2, state: "", zip: "", country: "United States",
+          grid: loc.gridsquare, lat: parseFloat(loc.latitude), lon: parseFloat(loc.longitude), expires: oi.expiryDate
+        };
+      }
+      function lookupCallsign(call, cb) {
+        var proxy = OP.store.get("proxy", "");
+        var sources = [
+          { name: "HamDB", url: "https://api.hamdb.org/" + encodeURIComponent(call) + "/json/operator-fi031", parse: parseHamDB },
+          { name: "Callook", url: "https://callook.info/" + encodeURIComponent(call) + "/json", parse: parseCallook }
+        ];
+        var i = 0;
+        (function tryNext() {
+          if (i >= sources.length) { cb("not found"); return; }
+          var s = sources[i++];
+          function go(url, fallback) {
+            fetch(url).then(function (r) { return r.text(); }).then(function (txt) {
+              var data; try { data = JSON.parse(txt); } catch (e) { if (fallback) { fallback(); return; } tryNext(); return; }
+              var info = s.parse(data);
+              if (info && info.call) { info.source = s.name; cb(null, info); } else { tryNext(); }
+            }).catch(function () { if (fallback) fallback(); else tryNext(); });
+          }
+          if (proxy) go(proxy + encodeURIComponent(s.url), function () { go(s.url, null); });
+          else go(s.url, null);
+        })();
+      }
+      function qcell(k, v) { return '<div class="meter" style="padding:9px 11px"><div class="mk">' + k + '</div><div class="mv" style="font-size:0.95rem">' + qesc(v) + '</div></div>'; }
+      function renderQRZ(info) {
+        var loc = [info.city, info.state].filter(Boolean).join(", ");
+        var distLine = "";
+        var me = OP.gridToLatLon(OP.state.grid);
+        var theirs = (info.lat && info.lon) ? { lat: info.lat, lon: info.lon } : OP.gridToLatLon(info.grid || "");
+        if (me && theirs) { var gc = OP.greatCircle(me.lat, me.lon, theirs.lat, theirs.lon); distLine = fmt(gc.mi, 0) + " mi at " + fmt(gc.bearing, 0) + " deg from you"; }
+        qrzOut.innerHTML =
+          '<div class="meter">' +
+          '<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">' +
+            '<span class="mv amber" style="font-size:1.4rem">' + qesc(info.call) + '</span>' +
+            '<span class="mu">' + (info.cls ? "class " + qesc(info.cls) + " " : "") + (info.status ? "&middot; " + qesc(info.status) : "") + '</span>' +
+          '</div>' +
+          (info.name ? '<div class="mv" style="font-size:1rem;margin-top:4px">' + qesc(info.name) + '</div>' : '') +
+          '<div class="grid3" style="margin-top:10px">' +
+            qcell("Grid", info.grid || "?") + qcell("Location", loc || info.country || "?") + qcell("License expires", info.expires || "?") +
+          '</div>' +
+          (info.addr ? '<div class="mu" style="margin-top:8px">' + qesc([info.addr, info.city, info.state, info.zip].filter(Boolean).join(", ")) + (info.country && info.country !== "United States" ? ", " + qesc(info.country) : "") + '</div>' : '') +
+          (distLine ? '<div class="mu" style="margin-top:4px">' + distLine + '</div>' : '') +
+          '<div class="row" style="margin-top:10px"><button class="btn" id="lg-qrz-use">Use in log</button><span class="mu" style="align-self:center">via ' + info.source + '. Verify before relying on it.</span></div>' +
+          '</div>';
+        var useBtn = qrzOut.querySelector("#lg-qrz-use");
+        if (useBtn) useBtn.addEventListener("click", function () {
+          if (info.call) wrap.querySelector("#lg-call").value = info.call;
+          if (info.name) wrap.querySelector("#lg-name").value = info.name;
+          if (info.grid) wrap.querySelector("#lg-grid").value = info.grid;
+        });
+      }
+      function doLookup() {
+        var call = qrz.querySelector("#lg-qrz").value.trim().toUpperCase();
+        if (!call) return;
+        qrzOut.innerHTML = '<p class="note">Looking up ' + qesc(call) + ' ...</p>';
+        lookupCallsign(call, function (err, info) {
+          if (err || !info) { qrzOut.innerHTML = '<p class="note">No record found for ' + qesc(call) + '. The free databases cover most US calls but not every operator. A CORS proxy in REPEATER helps if the lookup cannot connect.</p>'; return; }
+          renderQRZ(info);
+        });
+      }
+      qrz.querySelector("#lg-qrz-go").addEventListener("click", doLookup);
+      qrz.querySelector("#lg-qrz").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); doLookup(); } });
+
       var form = el("div", "stack");
       var row1 = el("div", "row");
       row1.innerHTML =
