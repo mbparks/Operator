@@ -1401,8 +1401,8 @@ footer.colophon .mono { color: var(--ink-dim); }
   function yes(v) { return /^(yes|y|true|1)$/i.test(("" + v).trim()); }
 
   function normalizeRB(rec) {
-    var out = parseFloat(pick(rec, ["Frequency", "frequency"], 0));
-    var inp = parseFloat(pick(rec, ["Input Freq", "Input Frequency", "input_freq"], 0));
+    var out = parseFloat(pick(rec, ["Frequency", "frequency", "Freq"], 0));
+    var inp = parseFloat(pick(rec, ["Input Freq", "Input Frequency", "input_freq", "InputFreq"], 0));
     var modes = [];
     if (yes(pick(rec, ["FM Analog", "FM"]))) modes.push("FM");
     if (yes(pick(rec, ["DMR"]))) modes.push("DMR");
@@ -1431,8 +1431,8 @@ footer.colophon .mono { color: var(--ink-dim); }
       state: pick(rec, ["State"], ""),
       sponsor: pick(rec, ["Repeater Sponsor", "Sponsor"], ""),
       notes: pick(rec, ["Notes"], ""),
-      lat: parseFloat(pick(rec, ["Lat", "latitude"], 0)),
-      lon: parseFloat(pick(rec, ["Long", "longitude"], 0))
+      lat: parseFloat(pick(rec, ["Lat", "lat", "Latitude", "latitude"], 0)),
+      lon: parseFloat(pick(rec, ["Long", "Lng", "lon", "Longitude", "longitude"], 0))
     };
   }
 
@@ -1647,39 +1647,57 @@ footer.colophon .mono { color: var(--ink-dim); }
         st.textContent = "Loading " + states.join(", ") + " ...";
         self.demo = false;
 
-        var collected = [], pending = states.length, hadError = false;
+        var collected = [], pending = states.length, hadError = false, diag = [];
         states.forEach(function (stName) {
           var cacheKey = "rptr.cache." + stName;
           var cached = OP.store.getJSON(cacheKey, null);
           var fresh = cached && (Date.now() - cached.t < 7 * 86400000);
-          if (fresh && !force) { collected = collected.concat(cached.r); done(); return; }
+          if (fresh && !force) { collected = collected.concat(cached.r); diag.push(stName + ": " + cached.r.length + " cached"); done(); return; }
           if (!proxy) {
-            if (cached) { collected = collected.concat(cached.r); }
-            else { hadError = true; }
+            if (cached) { collected = collected.concat(cached.r); diag.push(stName + ": " + cached.r.length + " cached"); }
+            else { hadError = true; diag.push(stName + ": no proxy"); }
             done(); return;
           }
-          var target = "https://www.repeaterbook.com/api/export.php?country=United States&state=" + encodeURIComponent(stName);
-          fetch(proxy + encodeURIComponent(target)).then(function (r) { return r.json(); }).then(function (data) {
+          var target = "https://www.repeaterbook.com/api/export.php?country=" + encodeURIComponent("United States") + "&state=" + encodeURIComponent(stName);
+          fetch(proxy + encodeURIComponent(target)).then(function (r) {
+            return r.text().then(function (txt) { return { status: r.status, ok: r.ok, txt: txt }; });
+          }).then(function (resp) {
+            var data;
+            try { data = JSON.parse(resp.txt); }
+            catch (e) {
+              hadError = true;
+              diag.push(stName + ": non-JSON reply (HTTP " + resp.status + ") " + resp.txt.slice(0, 60).replace(/\s+/g, " "));
+              done(); return;
+            }
+            if (data && data.error) { hadError = true; diag.push(stName + ": proxy says, " + data.error); done(); return; }
+            if (!resp.ok) { hadError = true; diag.push(stName + ": HTTP " + resp.status); done(); return; }
             var rows = (data && (data.results || data.Results)) || (Array.isArray(data) ? data : []);
+            if ((!rows || !rows.length) && data && typeof data === "object") {
+              for (var key in data) { if (Array.isArray(data[key]) && data[key].length) { rows = data[key]; break; } }
+            }
+            rows = rows || [];
             var norm = rows.map(normalizeRB).filter(function (r) { return r.lat && r.lon; });
-            OP.store.setJSON(cacheKey, { t: Date.now(), r: norm });
+            if (norm.length) OP.store.setJSON(cacheKey, { t: Date.now(), r: norm });
             collected = collected.concat(norm);
+            var cnt = (data && data.count != null) ? data.count : rows.length;
+            diag.push(stName + ": " + norm.length + " of " + cnt);
             done();
-          }).catch(function () { hadError = true; done(); });
+          }).catch(function () { hadError = true; diag.push(stName + ": fetch failed (proxy or network)"); done(); });
         });
 
         function done() {
           if (--pending > 0) return;
-          if (!collected.length) {
-            if (hadError && !proxy) st.textContent = "Live fetch needs a CORS proxy. Showing the sample set instead.";
-            else if (hadError) st.textContent = "Could not reach RepeaterBook through that proxy. Showing the sample set instead.";
-            else st.textContent = "No repeaters returned for those states.";
-            if (hadError) { self.loadDemo(); return; }
-          }
-          /* dedupe by call+out */
           var seen = {}, uniq = [];
           collected.forEach(function (r) { var k = r.call + "_" + r.out; if (!seen[k]) { seen[k] = 1; uniq.push(r); } });
           self.repeaters = uniq;
+          if (!uniq.length) {
+            if (hadError && !proxy) { st.textContent = "Live fetch needs a CORS proxy. Showing the sample set instead."; self.loadDemo(); return; }
+            var zeroCount = diag.join("  |  ");
+            var allZero = diag.every(function (d) { return / 0 of 0$/.test(d); });
+            st.textContent = "0 repeaters. " + zeroCount + (allZero ? ". RepeaterBook returned empty, which usually means the proxy is not sending a descriptive User-Agent. Use the operator proxy worker." : "");
+            self.render();
+            return;
+          }
           var within = self.withinRange().length;
           st.textContent = uniq.length + " repeaters loaded, " + within + " within " + self.range + " " + self.unit + ". Data from RepeaterBook.";
           self.render();
