@@ -1394,6 +1394,22 @@ footer.colophon .mono { color: var(--ink-dim); }
     }).sort(function (a, b) { return a.d - b.d; }).slice(0, n).map(function (s) { return s.name; });
   }
 
+  /* RepeaterBook export now keys on FIPS state_id, not state name */
+  var FIPS = {
+    "Alabama": "01", "Alaska": "02", "Arizona": "04", "Arkansas": "05", "California": "06",
+    "Colorado": "08", "Connecticut": "09", "Delaware": "10", "District of Columbia": "11",
+    "Florida": "12", "Georgia": "13", "Hawaii": "15", "Idaho": "16", "Illinois": "17",
+    "Indiana": "18", "Iowa": "19", "Kansas": "20", "Kentucky": "21", "Louisiana": "22",
+    "Maine": "23", "Maryland": "24", "Massachusetts": "25", "Michigan": "26", "Minnesota": "27",
+    "Mississippi": "28", "Missouri": "29", "Montana": "30", "Nebraska": "31", "Nevada": "32",
+    "New Hampshire": "33", "New Jersey": "34", "New Mexico": "35", "New York": "36",
+    "North Carolina": "37", "North Dakota": "38", "Ohio": "39", "Oklahoma": "40", "Oregon": "41",
+    "Pennsylvania": "42", "Rhode Island": "44", "South Carolina": "45", "South Dakota": "46",
+    "Tennessee": "47", "Texas": "48", "Utah": "49", "Vermont": "50", "Virginia": "51",
+    "Washington": "53", "West Virginia": "54", "Wisconsin": "55", "Wyoming": "56"
+  };
+  function fipsFor(name) { return FIPS[name] || ""; }
+
   function pick(o, keys, d) {
     for (var i = 0; i < keys.length; i++) { var v = o[keys[i]]; if (v !== undefined && v !== null && v !== "") return v; }
     return d === undefined ? "" : d;
@@ -1652,14 +1668,12 @@ footer.colophon .mono { color: var(--ink-dim); }
         if (!proxy) { L.push(""); L.push("No proxy set. Paste your worker URL ending in ?url= and test again."); flush(); return; }
         if (proxy.indexOf("=") < 0) L.push("WARNING: proxy does not appear to end in ?url=");
         var variants = [
-          ["country + state name", "https://www.repeaterbook.com/api/export.php?country=" + encodeURIComponent("United States") + "&state=Maryland"],
-          ["state name only", "https://www.repeaterbook.com/api/export.php?state=Maryland"],
-          ["state_id FIPS 24", "https://www.repeaterbook.com/api/export.php?state_id=24"]
+          ["country + state_id (FIPS 24)", "https://www.repeaterbook.com/api/export.php?country=" + encodeURIComponent("United States") + "&state_id=24"]
         ];
-        L.push("Probing " + variants.length + " query forms against Maryland ...");
+        L.push("Testing the RepeaterBook export for Maryland (state_id 24) ...");
         L.push("");
         flush();
-        var idx = 0, working = null, gateBlocked = false;
+        var idx = 0, working = null, gateBlocked = false, rbAuth = null;
 
         /* step 0: hit the proxy base to detect an auth gate in front of it */
         var base = proxy.replace(/\?.*$/, "");
@@ -1682,9 +1696,16 @@ footer.colophon .mono { color: var(--ink-dim); }
         function next() {
           if (idx >= variants.length) {
             L.push("");
-            if (gateBlocked) L.push("VERDICT: an authorization gate is intercepting requests before they reach RepeaterBook. Use the operator proxy worker on a plain workers.dev subdomain (no Cloudflare Access), then test again.");
-            else if (working) L.push("VERDICT: the '" + working + "' form works. Tell me which one and I will set REPEATER to use it.");
-            else L.push("VERDICT: every form returned no data. If counts were 0, the proxy is likely not sending a descriptive User-Agent (deploy the operator proxy worker). If you saw errors or non-JSON, the worker cannot reach RepeaterBook or RepeaterBook is blocking it.");
+            if (rbAuth) {
+              L.push("VERDICT: RepeaterBook answered but requires an approved token (" + rbAuth + "). This is expected since their March 2026 policy change.");
+              L.push("Apply at repeaterbook.com/api/token_request.php (logged in), then add the issued token to your worker as the secret RB_APP_TOKEN. The worker sends it as X-RB-App-Token. Do not put the token in the app or the URL.");
+            } else if (gateBlocked) {
+              L.push("VERDICT: an authorization gate is intercepting requests before they reach RepeaterBook. Check that the proxy URL is your operator worker and that nothing like Cloudflare Access sits in front of it.");
+            } else if (working) {
+              L.push("VERDICT: working. RepeaterBook returned data through the worker.");
+            } else {
+              L.push("VERDICT: no data and no clear auth error. If the count was 0, confirm the worker holds a valid RepeaterBook token and the approved User-Agent. If non-JSON, RepeaterBook may have served a block page.");
+            }
             flush(); return;
           }
           var name = variants[idx][0], target = variants[idx][1];
@@ -1695,8 +1716,8 @@ footer.colophon .mono { color: var(--ink-dim); }
           }).then(function (resp) {
             var line = "[" + name + "] HTTP " + resp.status + ", " + resp.ms + " ms, " + resp.txt.length + " bytes";
             var data = null; try { data = JSON.parse(resp.txt); } catch (e) {}
-            if (data && data.error) { line += " -> proxy error: " + data.error; }
-            else if (data && (data.error_code || data.message) && data.ok === false) { line += " -> auth gate: " + (data.message || data.error_code); gateBlocked = true; }
+            if (data && data.error && data.error.indexOf && data.error.indexOf("Missing url") < 0 && !data.error_code) { line += " -> proxy error: " + data.error; gateBlocked = true; }
+            else if (data && (data.error_code || (data.ok === false && data.message))) { rbAuth = data.error_code || data.message; line += " -> RepeaterBook auth: " + (data.message || data.error_code); }
             else if (data && typeof data === "object") {
               var rows = data.results || data.Results || [];
               var cnt = (data.count != null) ? data.count : (Array.isArray(rows) ? rows.length : 0);
@@ -1736,7 +1757,9 @@ footer.colophon .mono { color: var(--ink-dim); }
             else { hadError = true; diag.push(stName + ": no proxy"); }
             done(); return;
           }
-          var target = "https://www.repeaterbook.com/api/export.php?country=" + encodeURIComponent("United States") + "&state=" + encodeURIComponent(stName);
+          var fips = fipsFor(stName);
+          if (!fips) { diag.push(stName + ": no FIPS id"); done(); return; }
+          var target = "https://www.repeaterbook.com/api/export.php?country=" + encodeURIComponent("United States") + "&state_id=" + fips;
           fetch(proxy + encodeURIComponent(target)).then(function (r) {
             return r.text().then(function (txt) { return { status: r.status, ok: r.ok, txt: txt }; });
           }).then(function (resp) {
@@ -1748,7 +1771,7 @@ footer.colophon .mono { color: var(--ink-dim); }
               done(); return;
             }
             if (data && data.error) { hadError = true; diag.push(stName + ": proxy says, " + data.error); done(); return; }
-            if (data && data.ok === false && (data.error_code || data.message)) { hadError = true; diag.push(stName + ": auth gate, " + (data.message || data.error_code)); done(); return; }
+            if (data && data.ok === false && (data.error_code || data.message)) { hadError = true; diag.push(stName + ": RepeaterBook token required (" + (data.error_code || data.message) + ")"); done(); return; }
             if (!resp.ok) { hadError = true; diag.push(stName + ": HTTP " + resp.status); done(); return; }
             var rows = (data && (data.results || data.Results)) || (Array.isArray(data) ? data : []);
             if ((!rows || !rows.length) && data && typeof data === "object") {
@@ -1772,14 +1795,14 @@ footer.colophon .mono { color: var(--ink-dim); }
           if (!uniq.length) {
             if (hadError && !proxy) { st.textContent = "Live fetch needs a CORS proxy. Showing the sample set instead."; self.loadDemo(); return; }
             var zeroCount = diag.join("  |  ");
-            var gate = diag.some(function (d) { return /auth gate/.test(d); });
+            var gate = diag.some(function (d) { return /token required|auth gate|auth_/.test(d); });
             var allZero = diag.every(function (d) { return / 0 of 0$/.test(d); });
-            st.textContent = "0 repeaters. " + zeroCount + (gate ? ". An authorization gate is blocking the proxy. Use the operator proxy worker on a plain workers.dev subdomain. Run Test connection for detail." : (allZero ? ". RepeaterBook returned empty, which usually means the proxy is not sending a descriptive User-Agent. Use the operator proxy worker." : ""));
+            st.textContent = "0 repeaters. " + zeroCount + (gate ? ". RepeaterBook now requires an approved token (since March 2026). Add your issued token to the worker secret RB_APP_TOKEN. Run Test connection for detail." : (allZero ? ". RepeaterBook returned empty. Check the state and that your worker holds a valid RepeaterBook token." : ""));
             self.render();
             return;
           }
           var within = self.withinRange().length;
-          st.textContent = uniq.length + " repeaters loaded, " + within + " within " + self.range + " " + self.unit + ". Data from RepeaterBook.";
+          st.textContent = uniq.length + " repeaters loaded, " + within + " within " + self.range + " " + self.unit + ". Data courtesy of RepeaterBook.com.";
           self.render();
         }
       };
