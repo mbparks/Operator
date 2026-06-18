@@ -1461,6 +1461,58 @@ footer.colophon .mono { color: var(--ink-dim); }
     return out;
   }
 
+  /* Hearham open database normalizer. Frequencies arrive in hertz. */
+  function hModes(m) {
+    if (!m) return ["FM"];
+    m = ("" + m).toUpperCase();
+    var out = [];
+    if (/\bFM\b|ANALOG|NFM|WFM/.test(m)) out.push("FM");
+    if (/DMR|MOTOTRBO|BRANDMEISTER/.test(m)) out.push("DMR");
+    if (/D-?STAR/.test(m)) out.push("D-STAR");
+    if (/FUSION|YSF|C4FM|WIRES/.test(m)) out.push("Fusion");
+    if (/NXDN/.test(m)) out.push("NXDN");
+    if (/P-?25/.test(m)) out.push("P25");
+    if (/\bM17\b/.test(m)) out.push("M17");
+    return out.length ? out : ["FM"];
+  }
+  function toneFromText(d) {
+    if (!d) return "";
+    var m = ("" + d).match(/(?:PL|CTCSS|TONE|TSQ)[^\d]{0,5}(\d{2,3}(?:\.\d)?)/i);
+    return m ? m[1] : "";
+  }
+  function normalizeHearham(rec) {
+    var f = parseFloat(pick(rec, ["frequency", "Frequency", "freq"], 0));
+    var out = Math.abs(f) > 100000 ? f / 1e6 : f;
+    var offRaw = parseFloat(pick(rec, ["offset", "Offset"], 0));
+    var offset = Math.abs(offRaw) > 1000 ? offRaw / 1e6 : offRaw;
+    var inp = out ? out + offset : 0;
+    var desc = pick(rec, ["description", "Description", "notes"], "");
+    var toneUp = pick(rec, ["encode", "tone", "ctcss", "pl"], "") || toneFromText(desc);
+    var toneDown = pick(rec, ["decode", "tsq"], "");
+    var restriction = ("" + pick(rec, ["restriction", "use"], "")).toLowerCase();
+    return {
+      call: ("" + pick(rec, ["callsign", "Callsign", "call"], "?")).toUpperCase(),
+      out: out, inp: inp,
+      offset: (out && inp) ? +(inp - out).toFixed(4) : null,
+      toneUp: "" + toneUp, toneDown: "" + toneDown,
+      modes: hModes(pick(rec, ["mode", "Mode", "modes"], "")),
+      cc: pick(rec, ["color_code", "colorcode"], ""), dmrid: pick(rec, ["dmr_id", "dmrid"], ""),
+      echolink: pick(rec, ["echolink"], ""), irlp: pick(rec, ["irlp"], ""), allstar: pick(rec, ["allstar"], ""),
+      use: restriction === "open" ? "OPEN" : (restriction ? restriction.toUpperCase() : ""),
+      status: (pick(rec, ["operational"], 1) === 0 || /off[- ]?air/i.test("" + pick(rec, ["operational", "status"], ""))) ? "Off-air" : "",
+      city: pick(rec, ["city", "town", "landmark"], ""),
+      county: pick(rec, ["county"], ""),
+      state: pick(rec, ["region", "state", "province"], ""),
+      sponsor: pick(rec, ["group", "sponsor", "club"], ""),
+      notes: desc,
+      lat: parseFloat(pick(rec, ["latitude", "lat", "Lat"], 0)),
+      lon: parseFloat(pick(rec, ["longitude", "lon", "lng", "Long"], 0)),
+      src: "hearham"
+    };
+  }
+  function distKm(c, lat, lon) { return OP.greatCircle(c.lat, c.lon, lat, lon).km; }
+  var HEARHAM_URL = "https://hearham.com/api/repeaters/v1";
+
   var DEMO = [
     { call: "W3DMO", out: 146.940, inp: 146.340, offset: -0.6, toneUp: "127.3", toneDown: "127.3", modes: ["FM"], echolink: "44512", irlp: "", allstar: "", use: "OPEN", status: "On-air", city: "Cumberland", county: "Allegany", state: "Maryland", sponsor: "Sample ARC", notes: "Weekly net Tuesday 8:00 PM local. Open to all.", lat: 39.652, lon: -78.762, _demo: true },
     { call: "K3DMO", out: 443.500, inp: 448.500, offset: 5.0, toneUp: "100.0", toneDown: "", modes: ["FM", "Fusion"], echolink: "", irlp: "", allstar: "49233", use: "OPEN", status: "On-air", city: "Frostburg", county: "Allegany", state: "Maryland", sponsor: "Sample Group", notes: "Sunday evening swap net 1930 local.", lat: 39.658, lon: -78.928, _demo: true },
@@ -1658,6 +1710,47 @@ footer.colophon .mono { color: var(--ink-dim); }
         self.render();
       };
 
+      /* Hearham fallback: one open worldwide database, downloaded once, cached, filtered to your area */
+      self.fetchHearham = function (force) {
+        var st = document.getElementById("rp-status");
+        var c = self.center; if (!c) { st.textContent = "Set your position first."; return; }
+        var REGION_KM = 1000;
+        function finish(reason) {
+          self.source = "hearham"; self.demo = false;
+          var within = self.withinRange().length;
+          st.textContent = (reason ? reason + " " : "") + "Showing " + within + " of " + self.repeaters.length + " nearby from Hearham, within " + self.range + " " + self.unit + ". Data courtesy of Hearham.com.";
+          self.render();
+        }
+        /* cached regional subset */
+        var cache = OP.store.getJSON("hearham.cache", null);
+        if (cache && !force && (Date.now() - cache.t < 30 * 86400000) && distKm(c, cache.clat, cache.clon) < 300) {
+          self.repeaters = cache.r; finish(self._rbReason || "RepeaterBook unavailable.");
+          return;
+        }
+        st.textContent = "RepeaterBook unavailable, downloading the Hearham open database (one time) ...";
+        var proxy = wrap.querySelector("#rp-proxy").value.trim();
+        function parseAndUse(txt) {
+          var arr = JSON.parse(txt);
+          if (!Array.isArray(arr)) throw new Error("unexpected shape");
+          var norm = arr.map(normalizeHearham).filter(function (r) { return r.lat && r.lon && r.out; });
+          var region = norm.filter(function (r) { return distKm(c, r.lat, r.lon) < REGION_KM; });
+          self.repeaters = region;
+          try { OP.store.setJSON("hearham.cache", { t: Date.now(), clat: c.lat, clon: c.lon, r: region }); } catch (e) {}
+          finish(self._rbReason || "RepeaterBook unavailable.");
+        }
+        function tryDirect() {
+          fetch(HEARHAM_URL).then(function (r) { return r.text(); }).then(parseAndUse).catch(function () {
+            st.textContent = "Could not reach Hearham either. " + (self._rbReason || "") + " A CORS proxy in the field above usually fixes this.";
+            self.repeaters = []; self.render();
+          });
+        }
+        if (proxy) {
+          fetch(proxy + encodeURIComponent(HEARHAM_URL)).then(function (r) { return r.text(); }).then(parseAndUse).catch(tryDirect);
+        } else {
+          tryDirect();
+        }
+      };
+
       self.testConnection = function () {
         var out = document.getElementById("rp-test");
         out.style.display = "block";
@@ -1665,7 +1758,27 @@ footer.colophon .mono { color: var(--ink-dim); }
         var L = [];
         function flush() { out.textContent = L.join("\n"); }
         L.push("Proxy field: " + (proxy || "(empty)"));
-        if (!proxy) { L.push(""); L.push("No proxy set. Paste your worker URL ending in ?url= and test again."); flush(); return; }
+        if (!proxy) {
+          L.push("");
+          L.push("No proxy set. RepeaterBook needs one, but Hearham may work directly. Testing Hearham ...");
+          flush();
+          var dt0 = Date.now();
+          fetch(HEARHAM_URL).then(function (r) { return r.text().then(function (t) { return { status: r.status, txt: t, ms: Date.now() - dt0 }; }); }).then(function (hr) {
+            var arr = null; try { arr = JSON.parse(hr.txt); } catch (e) {}
+            if (Array.isArray(arr)) {
+              L.push("[Hearham direct] HTTP " + hr.status + ", " + hr.ms + " ms -> " + arr.length + " repeaters");
+              if (arr.length) L.push("  fields: " + Object.keys(arr[0]).slice(0, 12).join(", "));
+              L.push("VERDICT: Hearham works directly with no proxy. OPERATOR can run on the backup alone.");
+            } else {
+              L.push("[Hearham direct] HTTP " + hr.status + " -> non-array. Hearham likely needs the CORS proxy. Add your worker URL above.");
+            }
+            flush();
+          }).catch(function (e) {
+            L.push("[Hearham direct] FETCH FAILED: " + (e && e.message ? e.message : e) + ". Hearham needs the CORS proxy; paste your worker URL above and test again.");
+            flush();
+          });
+          return;
+        }
         if (proxy.indexOf("=") < 0) L.push("WARNING: proxy does not appear to end in ?url=");
         var variants = [
           ["country + state_id (FIPS 24)", "https://www.repeaterbook.com/api/export.php?country=" + encodeURIComponent("United States") + "&state_id=24"]
@@ -1697,16 +1810,40 @@ footer.colophon .mono { color: var(--ink-dim); }
           if (idx >= variants.length) {
             L.push("");
             if (rbAuth) {
-              L.push("VERDICT: RepeaterBook answered but requires an approved token (" + rbAuth + "). This is expected since their March 2026 policy change.");
-              L.push("Apply at repeaterbook.com/api/token_request.php (logged in), then add the issued token to your worker as the secret RB_APP_TOKEN. The worker sends it as X-RB-App-Token. Do not put the token in the app or the URL.");
+              L.push("VERDICT (RepeaterBook): answered but requires an approved token (" + rbAuth + "). Expected since their March 2026 policy change.");
+              L.push("Apply at repeaterbook.com/api/token_request.php (logged in), then add the token to your worker secret RB_APP_TOKEN. Until then OPERATOR uses Hearham.");
             } else if (gateBlocked) {
-              L.push("VERDICT: an authorization gate is intercepting requests before they reach RepeaterBook. Check that the proxy URL is your operator worker and that nothing like Cloudflare Access sits in front of it.");
+              L.push("VERDICT (RepeaterBook): an authorization gate is intercepting requests before they reach RepeaterBook. Check the proxy URL and any Cloudflare Access in front of it.");
             } else if (working) {
-              L.push("VERDICT: working. RepeaterBook returned data through the worker.");
+              L.push("VERDICT (RepeaterBook): working, data returned through the worker.");
             } else {
-              L.push("VERDICT: no data and no clear auth error. If the count was 0, confirm the worker holds a valid RepeaterBook token and the approved User-Agent. If non-JSON, RepeaterBook may have served a block page.");
+              L.push("VERDICT (RepeaterBook): no data and no clear auth error. Confirm the token and approved User-Agent.");
             }
-            flush(); return;
+            L.push("");
+            L.push("Now testing the Hearham backup ...");
+            flush();
+            var hUrl = proxy ? (proxy + encodeURIComponent(HEARHAM_URL)) : HEARHAM_URL;
+            var ht0 = Date.now();
+            fetch(hUrl).then(function (r) { return r.text().then(function (t) { return { status: r.status, txt: t, ms: Date.now() - ht0 }; }); }).then(function (hr) {
+              var arr = null; try { arr = JSON.parse(hr.txt); } catch (e) {}
+              if (Array.isArray(arr)) {
+                L.push("[Hearham] HTTP " + hr.status + ", " + hr.ms + " ms -> " + arr.length + " repeaters worldwide");
+                if (arr.length) {
+                  var s = arr[0];
+                  L.push("  fields: " + Object.keys(s).slice(0, 12).join(", "));
+                  L.push("VERDICT (Hearham): working. This is the active source until RepeaterBook is authorized.");
+                }
+              } else {
+                L.push("[Hearham] HTTP " + hr.status + " -> non-array: " + hr.txt.slice(0, 80).replace(/\s+/g, " "));
+                L.push("VERDICT (Hearham): reachable but unexpected reply. " + (proxy ? "Check the worker allowlist includes hearham.com." : "Try with a proxy in the field."));
+              }
+              flush();
+            }).catch(function (e) {
+              L.push("[Hearham] FETCH FAILED: " + (e && e.message ? e.message : e));
+              L.push("VERDICT (Hearham): could not reach it. " + (proxy ? "Confirm hearham.com is on the worker allowlist." : "Hearham may need the CORS proxy; add your worker URL above."));
+              flush();
+            });
+            return;
           }
           var name = variants[idx][0], target = variants[idx][1];
           var reqUrl = proxy + encodeURIComponent(target);
@@ -1744,7 +1881,7 @@ footer.colophon .mono { color: var(--ink-dim); }
         var proxy = wrap.querySelector("#rp-proxy").value.trim();
         if (proxy) OP.store.set("proxy", proxy);
         st.textContent = "Loading " + states.join(", ") + " ...";
-        self.demo = false;
+        self.demo = false; self.source = "repeaterbook";
 
         var collected = [], pending = states.length, hadError = false, diag = [];
         states.forEach(function (stName) {
@@ -1793,15 +1930,16 @@ footer.colophon .mono { color: var(--ink-dim); }
           collected.forEach(function (r) { var k = r.call + "_" + r.out; if (!seen[k]) { seen[k] = 1; uniq.push(r); } });
           self.repeaters = uniq;
           if (!uniq.length) {
-            if (hadError && !proxy) { st.textContent = "Live fetch needs a CORS proxy. Showing the sample set instead."; self.loadDemo(); return; }
-            var zeroCount = diag.join("  |  ");
             var gate = diag.some(function (d) { return /token required|auth gate|auth_/.test(d); });
-            var allZero = diag.every(function (d) { return / 0 of 0$/.test(d); });
-            st.textContent = "0 repeaters. " + zeroCount + (gate ? ". RepeaterBook now requires an approved token (since March 2026). Add your issued token to the worker secret RB_APP_TOKEN. Run Test connection for detail." : (allZero ? ". RepeaterBook returned empty. Check the state and that your worker holds a valid RepeaterBook token." : ""));
-            self.render();
+            var noproxy = diag.some(function (d) { return /no proxy/.test(d); });
+            self._rbReason = gate
+              ? "RepeaterBook needs an approved token, fell back to Hearham."
+              : (noproxy ? "No proxy for RepeaterBook, fell back to Hearham." : "RepeaterBook returned nothing, fell back to Hearham.");
+            self.fetchHearham(force);
             return;
           }
           var within = self.withinRange().length;
+          self.source = "repeaterbook";
           st.textContent = uniq.length + " repeaters loaded, " + within + " within " + self.range + " " + self.unit + ". Data courtesy of RepeaterBook.com.";
           self.render();
         }
