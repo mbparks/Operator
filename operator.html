@@ -1,0 +1,2518 @@
+<!DOCTYPE html>
+<!--
+  OPERATOR
+  Field Instrument 031
+  A modular console for the amateur radio operator.
+  Modules: GREYLINE, FOOTPRINT, SMITH, FEEDLINE, AZIMUTH, TELEGRAPH, LEXICON, LOGBOOK.
+
+  Single file. No build step. No server dependencies. Works offline.
+
+  License: GPL-3.0
+  This program is free software: you can redistribute it and/or modify it under
+  the terms of the GNU General Public License as published by the Free Software
+  Foundation, either version 3 of the License, or (at your option) any later
+  version. This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY, without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+  details. You should have received a copy of the GNU General Public License
+  along with this program. If not, see https://www.gnu.org/licenses/.
+-->
+<html lang="en" data-theme="night">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OPERATOR &middot; FI-031</title>
+<style>
+:root {
+  --bg: #0d1318;
+  --bg-grad-a: #111a21;
+  --bg-grad-b: #0a1015;
+  --panel: #151f26;
+  --panel-raised: #1c2830;
+  --panel-inset: #0e161b;
+  --ink: #d9e2e6;
+  --ink-dim: #87979f;
+  --ink-faint: #56666e;
+  --amber: #f5a623;
+  --amber-soft: #c98a2e;
+  --phosphor: #5fd0a8;
+  --phosphor-dim: #3f8f74;
+  --hot: #e8703a;
+  --cool: #4ea3c9;
+  --line: #283740;
+  --line-soft: #1f2c34;
+  --screw: #34434c;
+  --screw-slot: #0c1216;
+  --glow: 0 0 14px rgba(245,166,35,0.28);
+  --bezel-hi: rgba(255,255,255,0.05);
+  --bezel-lo: rgba(0,0,0,0.55);
+  --map-sea: #0c1a22;
+  --map-land: #1f3138;
+  --map-land-night: #14242b;
+  --map-grat: #233843;
+  --map-coast: #3a5560;
+  --sel-bg: #11181d;
+  --ok: #5fd0a8;
+  --warn: #f5a623;
+  --bad: #e8703a;
+}
+html[data-theme="day"] {
+  --bg: #cdbfa6;
+  --bg-grad-a: #d8cbb3;
+  --bg-grad-b: #c3b497;
+  --panel: #e3d8c1;
+  --panel-raised: #efe6d3;
+  --panel-inset: #d6c9ad;
+  --ink: #2b2419;
+  --ink-dim: #6c6049;
+  --ink-faint: #8e8266;
+  --amber: #a85a1a;
+  --amber-soft: #8a4d1c;
+  --phosphor: #2f6b4f;
+  --phosphor-dim: #4a7d63;
+  --hot: #9e3a26;
+  --cool: #2b6076;
+  --line: #c0b193;
+  --line-soft: #cabd9f;
+  --screw: #b3a482;
+  --screw-slot: #7a6c4f;
+  --glow: 0 0 0 rgba(0,0,0,0);
+  --bezel-hi: rgba(255,255,255,0.5);
+  --bezel-lo: rgba(120,100,70,0.4);
+  --map-sea: #c8bca0;
+  --map-land: #b0a07e;
+  --map-land-night: #9c8d6d;
+  --map-grat: #bcae8e;
+  --map-coast: #6f6247;
+  --sel-bg: #ddd0b6;
+  --ok: #2f6b4f;
+  --warn: #a85a1a;
+  --bad: #9e3a26;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background:
+    radial-gradient(120% 80% at 50% -10%, var(--bg-grad-a), var(--bg-grad-b) 70%),
+    var(--bg);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.5s ease, color 0.5s ease;
+}
+.mono { font-family: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; }
+.label, .silk {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: var(--ink-dim);
+}
+
+/* ---- console shell ---- */
+.console {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 18px 16px 64px;
+}
+
+/* status rail */
+.rail {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(180deg, var(--panel-raised), var(--panel));
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 16px;
+  position: relative;
+  box-shadow: inset 0 1px 0 var(--bezel-hi), 0 6px 18px rgba(0,0,0,0.35);
+}
+.rail .brand { display: flex; flex-direction: column; line-height: 1.05; }
+.rail .brand .name {
+  font-weight: 800;
+  letter-spacing: 0.34em;
+  font-size: 1.18rem;
+  color: var(--ink);
+}
+.rail .brand .sub {
+  font-size: 0.6rem;
+  letter-spacing: 0.32em;
+  color: var(--amber);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.rail .status {
+  display: flex;
+  gap: 18px;
+  margin-left: auto;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.readout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 64px;
+}
+.readout .k { font-size: 0.54rem; letter-spacing: 0.2em; color: var(--ink-faint); text-transform: uppercase; }
+.readout .v {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.98rem;
+  color: var(--phosphor);
+  font-weight: 600;
+}
+.readout .v.amber { color: var(--amber); }
+.readout button {
+  background: none; border: none; padding: 0; margin: 0; cursor: pointer; text-align: left;
+}
+
+/* day/night switch */
+.dnswitch {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--panel-inset);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.dnswitch .track {
+  width: 46px; height: 22px; border-radius: 999px;
+  background: var(--sel-bg);
+  border: 1px solid var(--line);
+  position: relative; transition: background 0.4s;
+}
+.dnswitch .knob {
+  position: absolute; top: 1px; left: 1px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--amber);
+  box-shadow: var(--glow);
+  transition: transform 0.4s ease, background 0.4s;
+}
+html[data-theme="day"] .dnswitch .knob { transform: translateX(24px); background: var(--amber); }
+.dnswitch .ico { font-size: 0.7rem; color: var(--ink-dim); }
+
+/* module selector */
+.selector {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  box-shadow: inset 0 1px 0 var(--bezel-hi);
+}
+.selector::-webkit-scrollbar { height: 6px; }
+.selector::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.tab {
+  flex: 1 0 auto;
+  min-width: 96px;
+  background: linear-gradient(180deg, var(--panel-raised), var(--panel));
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink-dim);
+  padding: 9px 10px 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.18s ease;
+  position: relative;
+}
+.tab .lamp {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--screw);
+  margin: 0 auto 6px;
+  box-shadow: inset 0 0 2px rgba(0,0,0,0.6);
+  transition: all 0.2s;
+}
+.tab .nm { font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; }
+.tab .no { font-size: 0.5rem; letter-spacing: 0.2em; color: var(--ink-faint); display: block; margin-top: 2px; }
+.tab:hover { color: var(--ink); border-color: var(--amber-soft); }
+.tab[aria-selected="true"] {
+  color: var(--ink);
+  border-color: var(--amber);
+  box-shadow: inset 0 0 0 1px var(--amber-soft), 0 0 12px rgba(245,166,35,0.16);
+}
+.tab[aria-selected="true"] .lamp { background: var(--amber); box-shadow: var(--glow); }
+.tab:focus-visible { outline: 2px solid var(--cool); outline-offset: 2px; }
+
+/* instrument face */
+.face {
+  margin-top: 16px;
+  background: linear-gradient(180deg, var(--panel-raised), var(--panel));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px 20px 22px;
+  position: relative;
+  box-shadow: inset 0 1px 0 var(--bezel-hi), 0 10px 30px rgba(0,0,0,0.35);
+}
+.face::before, .face::after,
+.face .screw { /* screws placed via JS-free pseudo not enough; use spans */ }
+.screw {
+  position: absolute; width: 12px; height: 12px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--bezel-hi), var(--screw) 60%);
+  border: 1px solid var(--bezel-lo);
+}
+.screw::after {
+  content: ""; position: absolute; inset: 3px; border-radius: 1px;
+  background: linear-gradient(90deg, transparent 44%, var(--screw-slot) 44%, var(--screw-slot) 56%, transparent 56%);
+  transform: rotate(35deg);
+}
+.screw.tl { top: 8px; left: 8px; } .screw.tr { top: 8px; right: 8px; }
+.screw.bl { bottom: 8px; left: 8px; } .screw.br { bottom: 8px; right: 8px; }
+
+.face h2.title {
+  margin: 0 0 2px;
+  font-size: 1.1rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--ink);
+}
+.face .tagline { margin: 0 0 18px; color: var(--ink-dim); font-size: 0.82rem; }
+.module { display: none; }
+.module.active { display: block; }
+
+/* generic controls */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 0.58rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faint); }
+input[type="text"], input[type="number"], input[type="datetime-local"], select, textarea {
+  background: var(--panel-inset);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  padding: 8px 10px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+  width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber-soft);
+}
+input::placeholder { color: var(--ink-faint); }
+button.btn {
+  background: linear-gradient(180deg, var(--panel-raised), var(--panel));
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  padding: 9px 14px;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+button.btn:hover { border-color: var(--amber); color: var(--ink); }
+button.btn:active { transform: translateY(1px); }
+button.btn.primary { border-color: var(--amber-soft); color: var(--amber); }
+button.btn.primary:hover { box-shadow: var(--glow); }
+button.btn:focus-visible { outline: 2px solid var(--cool); outline-offset: 2px; }
+button.btn.ghost { background: transparent; }
+
+/* readout panel */
+.meter {
+  background: var(--panel-inset);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.35);
+}
+.meter .mk { font-size: 0.54rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faint); }
+.meter .mv {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 1.35rem; color: var(--phosphor); font-weight: 600; line-height: 1.2;
+}
+.meter .mv.amber { color: var(--amber); }
+.meter .mv.hot { color: var(--hot); }
+.meter .mu { font-size: 0.7rem; color: var(--ink-dim); }
+
+.note { font-size: 0.74rem; color: var(--ink-faint); line-height: 1.5; }
+.divider { height: 1px; background: var(--line-soft); margin: 16px 0; border: none; }
+canvas { display: block; max-width: 100%; }
+
+/* tables */
+table.log { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+table.log th, table.log td {
+  text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--line-soft);
+}
+table.log th {
+  font-size: 0.54rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint);
+}
+table.log td { font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--ink); }
+table.log tr:hover td { background: var(--sel-bg); }
+.chip {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-size: 0.62rem; letter-spacing: 0.08em; border: 1px solid var(--line);
+  color: var(--ink-dim); font-family: ui-monospace, monospace;
+}
+
+/* lexicon */
+.lex-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.lex-cat {
+  padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--ink-dim); cursor: pointer;
+  font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700;
+}
+.lex-cat.on { border-color: var(--amber); color: var(--amber); }
+.lex-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.lex-item {
+  background: var(--panel-inset); border: 1px solid var(--line-soft);
+  border-radius: 6px; padding: 8px 11px;
+}
+.lex-item .term { font-family: ui-monospace, monospace; color: var(--amber); font-weight: 700; font-size: 0.92rem; }
+.lex-item .def { color: var(--ink-dim); font-size: 0.78rem; margin-top: 2px; }
+
+/* telegraph */
+.lamp-big {
+  width: 100%; height: 64px; border-radius: 8px;
+  background: var(--panel-inset); border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
+}
+.lamp-dot {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--screw); transition: background 0.04s, box-shadow 0.04s;
+}
+.lamp-dot.on { background: var(--amber); box-shadow: 0 0 22px rgba(245,166,35,0.7), 0 0 8px var(--amber); }
+.rhythm { display: flex; gap: 3px; flex-wrap: wrap; min-height: 26px; align-items: center; margin-top: 12px; }
+.rhythm .el { height: 16px; border-radius: 3px; background: var(--line); transition: background 0.06s; }
+.rhythm .el.dit { width: 10px; } .rhythm .el.dah { width: 30px; }
+.rhythm .el.gap { background: transparent; width: 10px; }
+.rhythm .el.on { background: var(--phosphor); box-shadow: 0 0 8px var(--phosphor-dim); }
+
+/* smith */
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.7rem; color: var(--ink-dim); margin-top: 10px; }
+.legend span b { color: var(--amber); }
+
+input[type="range"] { -webkit-appearance: none; appearance: none; height: 4px; background: var(--line); border-radius: 4px; padding: 0; }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--amber); cursor: pointer; box-shadow: var(--glow);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px; height: 16px; border: none; border-radius: 50%; background: var(--amber); cursor: pointer;
+}
+
+footer.colophon {
+  margin-top: 26px; text-align: center; color: var(--ink-faint);
+  font-size: 0.66rem; letter-spacing: 0.1em;
+}
+footer.colophon .mono { color: var(--ink-dim); }
+
+@media (max-width: 720px) {
+  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .rail { flex-wrap: wrap; }
+  .rail .status { width: 100%; margin-left: 0; }
+  .rail .brand .name { font-size: 1rem; letter-spacing: 0.26em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="console">
+
+  <div class="rail">
+    <div class="brand">
+      <span class="name">OPERATOR</span>
+      <span class="sub">Field Instrument 031</span>
+    </div>
+    <div class="status">
+      <div class="readout">
+        <span class="k">UTC</span>
+        <span class="v" id="utcClock">--:--:--</span>
+      </div>
+      <div class="readout">
+        <span class="k">Station</span>
+        <button id="callBtn" title="Set your callsign"><span class="v amber" id="callOut">SET CALL</span></button>
+      </div>
+      <div class="readout">
+        <span class="k">Grid</span>
+        <button id="gridBtn" title="Set your grid square"><span class="v" id="gridOut">SET GRID</span></button>
+      </div>
+      <div class="dnswitch" id="dnSwitch" role="switch" aria-checked="false" tabindex="0" title="Day / night">
+        <span class="ico">&#9790;</span>
+        <span class="track"><span class="knob"></span></span>
+        <span class="ico">&#9788;</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="selector" id="selector" role="tablist" aria-label="Instrument modules"></div>
+
+  <div class="face">
+    <span class="screw tl"></span><span class="screw tr"></span>
+    <span class="screw bl"></span><span class="screw br"></span>
+    <div id="modules"></div>
+  </div>
+
+  <footer class="colophon">
+    OPERATOR &middot; FI-031 &middot; <span class="mono" id="verOut">v0.1.0</span> &middot; GPL-3.0 &middot; make. hack. learn. share. repeat.
+  </footer>
+</div>
+<script>
+/* ===================== OPERATOR core ===================== */
+(function () {
+  "use strict";
+
+  var VERSION = "v0.1.0";
+
+  /* ---- safe storage (falls back to memory if blocked) ---- */
+  var mem = {};
+  var store = {
+    get: function (k, d) {
+      try { var v = window.localStorage.getItem("operator." + k); return v === null ? d : v; }
+      catch (e) { return (k in mem) ? mem[k] : d; }
+    },
+    set: function (k, v) {
+      try { window.localStorage.setItem("operator." + k, v); }
+      catch (e) { mem[k] = v; }
+    },
+    getJSON: function (k, d) {
+      var raw = store.get(k, null);
+      if (raw === null) return d;
+      try { return JSON.parse(raw); } catch (e) { return d; }
+    },
+    setJSON: function (k, v) { store.set(k, JSON.stringify(v)); }
+  };
+
+  /* ---- shared state ---- */
+  var state = {
+    call: store.get("call", ""),
+    grid: store.get("grid", "")
+  };
+
+  /* ===================== math utilities ===================== */
+  var DEG = Math.PI / 180, RAD = 180 / Math.PI;
+
+  function gridToLatLon(grid) {
+    if (!grid) return null;
+    grid = grid.trim().toUpperCase();
+    if (!/^[A-R]{2}[0-9]{2}([A-X]{2})?([0-9]{2})?$/.test(grid)) return null;
+    var lon = (grid.charCodeAt(0) - 65) * 20 - 180;
+    var lat = (grid.charCodeAt(1) - 65) * 10 - 90;
+    lon += (grid.charCodeAt(2) - 48) * 2;
+    lat += (grid.charCodeAt(3) - 48) * 1;
+    if (grid.length >= 6) {
+      lon += (grid.charCodeAt(4) - 65) * (2 / 24);
+      lat += (grid.charCodeAt(5) - 65) * (1 / 24);
+      lon += (2 / 24) / 2; lat += (1 / 24) / 2;
+    } else {
+      lon += 1; lat += 0.5;
+    }
+    return { lat: lat, lon: lon };
+  }
+
+  function latLonToGrid(lat, lon, precision) {
+    precision = precision || 6;
+    lon += 180; lat += 90;
+    var A = "ABCDEFGHIJKLMNOPQRSTUVWX";
+    var f1 = Math.floor(lon / 20), f2 = Math.floor(lat / 10);
+    var s1 = Math.floor((lon % 20) / 2), s2 = Math.floor((lat % 10) / 1);
+    var g = A[f1] + A[f2] + s1 + "" + s2;
+    if (precision >= 6) {
+      var sub1 = Math.floor((lon - f1 * 20 - s1 * 2) / (2 / 24));
+      var sub2 = Math.floor((lat - f2 * 10 - s2 * 1) / (1 / 24));
+      g += A[sub1].toLowerCase() + A[sub2].toLowerCase();
+    }
+    return g;
+  }
+
+  function greatCircle(lat1, lon1, lat2, lon2) {
+    var p1 = lat1 * DEG, p2 = lat2 * DEG;
+    var dl = (lon2 - lon1) * DEG, df = (lat2 - lat1) * DEG;
+    var a = Math.sin(df / 2) * Math.sin(df / 2) +
+            Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    var km = 6371 * c;
+    var y = Math.sin(dl) * Math.cos(p2);
+    var x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+    var brg = (Math.atan2(y, x) * RAD + 360) % 360;
+    return { km: km, mi: km * 0.621371, bearing: brg };
+  }
+
+  /* sun position: subsolar lat/lon for a given Date (UTC) */
+  function subsolarPoint(date) {
+    var jd = date.getTime() / 86400000 + 2440587.5;
+    var n = jd - 2451545.0;
+    var L = (280.460 + 0.9856474 * n) % 360; if (L < 0) L += 360;
+    var g = ((357.528 + 0.9856003 * n) % 360) * DEG;
+    var lambda = (L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * DEG;
+    var eps = (23.439 - 0.0000004 * n) * DEG;
+    var decl = Math.asin(Math.sin(eps) * Math.sin(lambda)) * RAD;
+    var ra = Math.atan2(Math.cos(eps) * Math.sin(lambda), Math.cos(lambda)) * RAD;
+    if (ra < 0) ra += 360;
+    var gmst = (280.46061837 + 360.98564736629 * n) % 360; if (gmst < 0) gmst += 360;
+    var subLon = ra - gmst; subLon = ((subLon + 540) % 360) - 180;
+    return { lat: decl, lon: subLon };
+  }
+
+  function fmt(n, d) { return (n).toFixed(d === undefined ? 1 : d); }
+  function pad(n) { return n < 10 ? "0" + n : "" + n; }
+
+  /* ===================== world map renderer ===================== */
+  /* coarse simplified continents in [lon,lat]; stylized on purpose */
+  var LAND = [
+    /* North America */
+    [[-168,66],[-160,71],[-140,70],[-128,70],[-110,68],[-95,69],[-82,73],[-72,68],[-60,58],[-66,50],[-65,45],[-70,42],[-74,40],[-76,35],[-81,31],[-80,25],[-90,29],[-94,29],[-97,26],[-106,23],[-110,23],[-114,28],[-117,33],[-124,40],[-124,48],[-130,54],[-140,60],[-150,60],[-158,58],[-165,60],[-168,66]],
+    /* Greenland */
+    [[-46,60],[-30,60],[-22,70],[-20,76],[-30,82],[-46,83],[-58,80],[-54,72],[-50,66],[-46,60]],
+    /* South America */
+    [[-81,8],[-76,11],[-70,12],[-62,10],[-52,5],[-50,0],[-44,-3],[-39,-13],[-39,-23],[-48,-25],[-54,-34],[-58,-39],[-64,-41],[-66,-45],[-69,-52],[-74,-50],[-72,-44],[-73,-37],[-71,-30],[-71,-18],[-76,-14],[-81,-6],[-80,0],[-78,4],[-81,8]],
+    /* Africa */
+    [[-17,15],[-10,28],[0,32],[10,34],[20,33],[25,32],[33,31],[35,24],[37,18],[43,11],[51,12],[48,5],[42,-2],[40,-10],[40,-18],[35,-24],[28,-33],[20,-35],[18,-29],[14,-22],[12,-16],[9,-2],[9,4],[3,6],[-5,5],[-12,8],[-17,15]],
+    /* Europe */
+    [[-10,37],[-9,43],[-2,44],[3,43],[8,44],[12,45],[14,41],[18,40],[23,38],[27,40],[30,46],[38,47],[40,55],[30,60],[24,66],[22,70],[14,68],[10,64],[5,61],[8,58],[10,54],[4,52],[0,51],[-5,48],[-2,44],[-10,37]],
+    /* Asia */
+    [[40,55],[55,52],[60,45],[52,42],[50,40],[45,40],[48,46],[55,52],[60,55],[70,55],[60,52],[60,62],[68,68],[78,71],[90,75],[105,78],[120,74],[135,72],[160,70],[178,68],[170,60],[160,58],[150,59],[142,54],[140,46],[130,43],[127,38],[122,40],[120,34],[122,30],[118,24],[110,21],[108,15],[105,9],[100,8],[98,14],[97,16],[92,21],[88,22],[80,15],[77,8],[73,18],[70,22],[67,25],[62,25],[57,25],[52,28],[48,30],[40,38],[36,36],[40,42],[48,42],[50,45],[47,48],[40,46],[38,47],[40,55]],
+    /* India tip already in Asia; Arabian peninsula */
+    [[35,30],[43,29],[50,28],[57,24],[52,18],[45,13],[43,18],[38,22],[35,28],[35,30]],
+    /* Australia */
+    [[114,-22],[122,-18],[130,-12],[137,-12],[142,-11],[146,-18],[150,-24],[153,-28],[150,-37],[143,-39],[135,-35],[129,-32],[123,-34],[115,-34],[114,-26],[114,-22]],
+    /* small islands */
+    [[-7,55],[-3,58],[-2,53],[-5,50],[-9,52],[-7,55]],
+    [[130,31],[140,36],[142,40],[138,36],[135,33],[130,31]],
+    [[166,-37],[174,-34],[178,-39],[173,-43],[167,-46],[166,-41],[166,-37]],
+    [[44,-12],[50,-15],[49,-22],[44,-25],[43,-18],[44,-12]],
+    [[-22,64],[-14,65],[-15,66],[-22,66],[-24,65],[-22,64]]
+  ];
+  var ANTARCTICA_TOP = -62;
+
+  function makeMap(opts) {
+    /* returns an object with canvas + draw(options) */
+    var W = opts.width, H = opts.height;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var cv = document.createElement("canvas");
+    cv.width = W * dpr; cv.height = H * dpr;
+    cv.style.width = W + "px"; cv.style.height = H + "px";
+    cv.style.borderRadius = "8px";
+    var ctx = cv.getContext("2d");
+    ctx.scale(dpr, dpr);
+
+    function px(lon, lat) {
+      return { x: (lon + 180) / 360 * W, y: (90 - lat) / 180 * H };
+    }
+    function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+    function draw(o) {
+      o = o || {};
+      var sea = cssVar("--map-sea"), land = cssVar("--map-land"),
+          landNight = cssVar("--map-land-night"), grat = cssVar("--map-grat"),
+          coast = cssVar("--map-coast"), amber = cssVar("--amber"),
+          phos = cssVar("--phosphor"), hot = cssVar("--hot"), ink = cssVar("--ink-dim");
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = sea; ctx.fillRect(0, 0, W, H);
+
+      /* night shading from terminator */
+      var sub = o.terminator ? subsolarPoint(o.date || new Date()) : null;
+      if (sub) {
+        var decl = sub.lat * DEG;
+        ctx.fillStyle = "rgba(0,0,0,0.30)";
+        ctx.beginPath();
+        var started = false;
+        for (var lonI = -180; lonI <= 180; lonI += 2) {
+          var H0 = (lonI - sub.lon) * DEG;
+          var tlat = Math.atan(-Math.cos(H0) / Math.tan(decl)) * RAD;
+          var p = px(lonI, tlat);
+          if (!started) { ctx.moveTo(p.x, p.y); started = true; } else ctx.lineTo(p.x, p.y);
+        }
+        if (decl >= 0) { ctx.lineTo(W, H); ctx.lineTo(0, H); } else { ctx.lineTo(W, 0); ctx.lineTo(0, 0); }
+        ctx.closePath(); ctx.fill();
+      }
+
+      /* graticule */
+      ctx.strokeStyle = grat; ctx.lineWidth = 0.5; ctx.globalAlpha = 0.6;
+      for (var ln = -180; ln <= 180; ln += 30) { var a = px(ln, 0); ctx.beginPath(); ctx.moveTo(a.x, 0); ctx.lineTo(a.x, H); ctx.stroke(); }
+      for (var lt = -60; lt <= 60; lt += 30) { var b = px(0, lt); ctx.beginPath(); ctx.moveTo(0, b.y); ctx.lineTo(W, b.y); ctx.stroke(); }
+      ctx.globalAlpha = 1;
+      var eq = px(0, 0); ctx.strokeStyle = grat; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(0, eq.y); ctx.lineTo(W, eq.y); ctx.stroke();
+
+      /* land: real coastlines if loaded, else coarse fallback polygons */
+      var rings = window.OP.WORLD;
+      if (rings && rings.length) {
+        for (var i = 0; i < rings.length; i++) {
+          var ring = rings[i];
+          ctx.beginPath();
+          var prevLon = null, started = false;
+          for (var j = 0; j < ring.length; j++) {
+            var lon = ring[j][0], lat = ring[j][1];
+            var pt = px(lon, lat);
+            if (!started || (prevLon !== null && Math.abs(lon - prevLon) > 180)) { ctx.moveTo(pt.x, pt.y); started = true; }
+            else ctx.lineTo(pt.x, pt.y);
+            prevLon = lon;
+          }
+          ctx.closePath();
+          ctx.fillStyle = land; ctx.fill();
+          ctx.strokeStyle = coast; ctx.lineWidth = 0.5; ctx.stroke();
+        }
+      } else {
+        for (var i2 = 0; i2 < LAND.length; i2++) {
+          ctx.beginPath();
+          for (var j2 = 0; j2 < LAND[i2].length; j2++) {
+            var pt2 = px(LAND[i2][j2][0], LAND[i2][j2][1]);
+            if (j2 === 0) ctx.moveTo(pt2.x, pt2.y); else ctx.lineTo(pt2.x, pt2.y);
+          }
+          ctx.closePath();
+          ctx.fillStyle = land; ctx.fill();
+          ctx.strokeStyle = coast; ctx.lineWidth = 0.6; ctx.stroke();
+        }
+        /* antarctica band (only needed for the coarse set) */
+        var at = px(-180, ANTARCTICA_TOP);
+        ctx.fillStyle = land; ctx.fillRect(0, at.y, W, H - at.y);
+        ctx.strokeStyle = coast; ctx.beginPath(); ctx.moveTo(0, at.y); ctx.lineTo(W, at.y); ctx.stroke();
+      }
+
+      /* subsolar marker */
+      if (sub && o.showSun !== false) {
+        var sp = px(sub.lon, sub.lat);
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, 6, 0, 7); ctx.fillStyle = amber; ctx.fill();
+        ctx.globalAlpha = 0.25; ctx.beginPath(); ctx.arc(sp.x, sp.y, 13, 0, 7); ctx.fillStyle = amber; ctx.fill(); ctx.globalAlpha = 1;
+      }
+
+      /* lines */
+      if (o.lines) {
+        o.lines.forEach(function (ln2) {
+          var a1 = px(ln2.from.lon, ln2.from.lat), a2 = px(ln2.to.lon, ln2.to.lat);
+          ctx.strokeStyle = ln2.color || phos; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(a1.x, a1.y); ctx.lineTo(a2.x, a2.y); ctx.stroke(); ctx.globalAlpha = 1;
+        });
+      }
+      /* markers */
+      if (o.markers) {
+        o.markers.forEach(function (m) {
+          var mp = px(m.lon, m.lat);
+          ctx.beginPath(); ctx.arc(mp.x, mp.y, m.r || 4, 0, 7);
+          ctx.fillStyle = m.color || hot; ctx.fill();
+          if (m.ring) { ctx.strokeStyle = m.color || hot; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(mp.x, mp.y, (m.r || 4) + 3, 0, 7); ctx.stroke(); }
+          if (m.label) { ctx.fillStyle = ink; ctx.font = "9px ui-monospace, monospace"; ctx.fillText(m.label, mp.x + 6, mp.y - 5); }
+        });
+      }
+    }
+    return { canvas: cv, draw: draw, px: px };
+  }
+
+  /* expose to module scope */
+  window.OP = {
+    VERSION: VERSION, store: store, state: state,
+    gridToLatLon: gridToLatLon, latLonToGrid: latLonToGrid,
+    greatCircle: greatCircle, subsolarPoint: subsolarPoint,
+    makeMap: makeMap, fmt: fmt, pad: pad, DEG: DEG, RAD: RAD,
+    modules: {}, WORLD: null
+  };
+
+  /* real coastlines, online with cache, coarse polygons as the offline fallback */
+  function parseGeo(gj) {
+    var rings = [];
+    (gj.features || []).forEach(function (f) {
+      var g = f.geometry; if (!g) return;
+      var polys = g.type === "Polygon" ? [g.coordinates] : (g.type === "MultiPolygon" ? g.coordinates : []);
+      polys.forEach(function (poly) { poly.forEach(function (ring) { rings.push(ring); }); });
+    });
+    return rings;
+  }
+  window.OP.loadWorld = function () {
+    var cached = store.get("world110", null);
+    if (cached) { try { window.OP.WORLD = parseGeo(JSON.parse(cached)); window.OP.fire("world"); return; } catch (e) {} }
+    var urls = [
+      "https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/110m/physical/ne_110m_land.json",
+      "https://raw.githubusercontent.com/martynafford/natural-earth-geojson/master/110m/physical/ne_110m_land.json"
+    ];
+    (function tryNext(i) {
+      if (i >= urls.length) return;
+      fetch(urls[i]).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (txt) {
+        window.OP.WORLD = parseGeo(JSON.parse(txt));
+        try { store.set("world110", txt); } catch (e) {}
+        window.OP.fire("world");
+      }).catch(function () { tryNext(i + 1); });
+    })(0);
+  };
+
+  /* ===================== chrome: clock, theme, callsign/grid ===================== */
+  function tickClock() {
+    var d = new Date();
+    document.getElementById("utcClock").textContent =
+      pad(d.getUTCHours()) + ":" + pad(d.getUTCMinutes()) + ":" + pad(d.getUTCSeconds());
+  }
+  setInterval(tickClock, 1000); tickClock();
+
+  function refreshStation() {
+    document.getElementById("callOut").textContent = state.call ? state.call.toUpperCase() : "SET CALL";
+    document.getElementById("gridOut").textContent = state.grid ? state.grid.toUpperCase() : "SET GRID";
+  }
+  document.getElementById("callBtn").addEventListener("click", function () {
+    var v = window.prompt("Your callsign", state.call || "");
+    if (v !== null) { state.call = v.trim().toUpperCase(); store.set("call", state.call); refreshStation(); fire("station"); }
+  });
+  document.getElementById("gridBtn").addEventListener("click", function () {
+    var v = window.prompt("Your grid square (e.g. FM19)", state.grid || "");
+    if (v !== null) {
+      v = v.trim().toUpperCase();
+      if (v && !gridToLatLon(v)) { window.alert("That does not look like a valid Maidenhead grid."); return; }
+      state.grid = v; store.set("grid", state.grid); refreshStation(); fire("station");
+    }
+  });
+  refreshStation();
+
+  /* simple event bus so modules can react to station/theme changes */
+  var listeners = {};
+  function on(ev, fn) { (listeners[ev] = listeners[ev] || []).push(fn); }
+  function fire(ev) { (listeners[ev] || []).forEach(function (f) { try { f(); } catch (e) {} }); }
+  window.OP.on = on; window.OP.fire = fire;
+
+  var theme = store.get("theme", "night");
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    document.getElementById("dnSwitch").setAttribute("aria-checked", t === "day" ? "true" : "false");
+    store.set("theme", t); fire("theme");
+  }
+  applyTheme(theme);
+  function toggleTheme() {
+    theme = (document.documentElement.getAttribute("data-theme") === "day") ? "night" : "day";
+    applyTheme(theme);
+  }
+  var dn = document.getElementById("dnSwitch");
+  dn.addEventListener("click", toggleTheme);
+  dn.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleTheme(); } });
+
+  document.getElementById("verOut").textContent = VERSION;
+
+  /* ===================== module registry + nav ===================== */
+  var ORDER = ["greyline", "footprint", "smith", "feedline", "azimuth", "repeater", "telegraph", "lexicon", "logbook"];
+  var NUM = { greyline: "031A", footprint: "031B", smith: "031C", feedline: "031D", azimuth: "031E", repeater: "031F", telegraph: "031G", lexicon: "031H", logbook: "031I" };
+
+  window.OP.register = function (id, def) { window.OP.modules[id] = def; };
+
+  window.OP.boot = function () {
+    var sel = document.getElementById("selector");
+    var host = document.getElementById("modules");
+    var active = store.get("module", "greyline");
+    if (ORDER.indexOf(active) < 0) active = "greyline";
+
+    ORDER.forEach(function (id) {
+      var def = window.OP.modules[id];
+      if (!def) return;
+      var tab = document.createElement("button");
+      tab.className = "tab"; tab.setAttribute("role", "tab"); tab.dataset.id = id;
+      tab.setAttribute("aria-selected", "false");
+      tab.innerHTML = '<span class="lamp"></span><span class="nm">' + def.label + '</span><span class="no">' + (NUM[id] || "") + '</span>';
+      tab.addEventListener("click", function () { show(id); });
+      sel.appendChild(tab);
+
+      var sec = document.createElement("section");
+      sec.className = "module"; sec.id = "mod-" + id;
+      sec.innerHTML = '<h2 class="title">' + def.label + '</h2><p class="tagline">' + (def.tagline || "") + '</p><div class="body"></div>';
+      host.appendChild(sec);
+      def._body = sec.querySelector(".body");
+      def._booted = false;
+    });
+
+    function show(id) {
+      ORDER.forEach(function (oid) {
+        var t = sel.querySelector('[data-id="' + oid + '"]');
+        var m = document.getElementById("mod-" + oid);
+        if (!t || !m) return;
+        var onnow = oid === id;
+        t.setAttribute("aria-selected", onnow ? "true" : "false");
+        m.classList.toggle("active", onnow);
+        if (onnow) {
+          var def = window.OP.modules[oid];
+          if (def && !def._booted) { def.init(def._body); def._booted = true; }
+          if (def && def.onShow) def.onShow();
+        }
+      });
+      store.set("module", id);
+    }
+    window.OP.show = show;
+    show(active);
+    window.OP.loadWorld();
+  };
+
+})();
+
+</script>
+<script>
+/* ===================== OPERATOR modules (1 of 2) ===================== */
+(function () {
+  "use strict";
+  var OP = window.OP;
+  var fmt = OP.fmt, pad = OP.pad;
+
+  function el(tag, cls, html) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+  function bandFor(mhz) {
+    var b = [
+      [0.135,0.138,"2200m"],[0.472,0.479,"630m"],[1.8,2.0,"160m"],[3.5,4.0,"80m"],
+      [5.3,5.4,"60m"],[7.0,7.3,"40m"],[10.1,10.15,"30m"],[14.0,14.35,"20m"],
+      [18.068,18.168,"17m"],[21.0,21.45,"15m"],[24.89,24.99,"12m"],[28.0,29.7,"10m"],
+      [50,54,"6m"],[144,148,"2m"],[222,225,"1.25m"],[420,450,"70cm"],
+      [902,928,"33cm"],[1240,1300,"23cm"]
+    ];
+    for (var i = 0; i < b.length; i++) if (mhz >= b[i][0] && mhz <= b[i][1]) return b[i][2];
+    return "";
+  }
+  OP.bandFor = bandFor;
+  var BAND_COLOR = {
+    "160m":"#8a6cf0","80m":"#6c7cf0","40m":"#4ea3c9","30m":"#3fb59a","20m":"#5fd0a8",
+    "17m":"#9ccf4a","15m":"#f5d23a","12m":"#f5a623","10m":"#e8703a","6m":"#e8506a",
+    "2m":"#d060c0","70cm":"#b070e0"
+  };
+  function bandColor(b) { return BAND_COLOR[b] || "#5fd0a8"; }
+
+  /* ===================== GREYLINE ===================== */
+  OP.register("greyline", {
+    label: "GREYLINE",
+    tagline: "Day and night across the globe, with your station under the terminator.",
+    init: function (body) {
+      var self = this;
+      var wrap = el("div", "stack");
+      var mapHost = el("div"); mapHost.style.textAlign = "center";
+      var w = Math.min(body.clientWidth || 680, 680);
+      this.map = OP.makeMap({ width: w, height: w / 2 });
+      mapHost.appendChild(this.map.canvas);
+      wrap.appendChild(mapHost);
+
+      var meters = el("div", "grid3");
+      meters.innerHTML =
+        '<div class="meter"><div class="mk">Subsolar point</div><div class="mv amber" id="gl-sub">--</div><div class="mu">latitude / longitude</div></div>' +
+        '<div class="meter"><div class="mk">Your station</div><div class="mv" id="gl-you">--</div><div class="mu" id="gl-youloc">set grid above</div></div>' +
+        '<div class="meter"><div class="mk">Local sun</div><div class="mv" id="gl-state">--</div><div class="mu" id="gl-times">elevation</div></div>';
+      wrap.appendChild(meters);
+      wrap.appendChild(el("p", "note", "The shaded half is in darkness. The narrow band along the terminator is the grayline, where the lower bands can open for long-haul work near your sunrise and sunset."));
+      body.appendChild(wrap);
+
+      this.redraw = function () {
+        var date = new Date();
+        var sub = OP.subsolarPoint(date);
+        var you = OP.gridToLatLon(OP.state.grid);
+        var markers = [], opts = { terminator: true, date: date };
+        if (you) markers.push({ lon: you.lon, lat: you.lat, color: getComputedStyle(document.documentElement).getPropertyValue("--hot").trim(), r: 5, ring: true, label: OP.state.call || OP.state.grid });
+        opts.markers = markers;
+        self.map.draw(opts);
+        document.getElementById("gl-sub").textContent = fmt(sub.lat, 1) + ", " + fmt(sub.lon, 1);
+        if (you) {
+          document.getElementById("gl-you").textContent = OP.state.grid.toUpperCase();
+          document.getElementById("gl-youloc").textContent = fmt(you.lat, 2) + ", " + fmt(you.lon, 2);
+          var elev = sunElevation(date, you.lat, you.lon);
+          var st = elev > 0 ? "DAY" : (elev > -6 ? "GRAYLINE" : (elev > -18 ? "TWILIGHT" : "NIGHT"));
+          var stEl = document.getElementById("gl-state");
+          stEl.textContent = st;
+          stEl.className = "mv " + (st === "DAY" ? "amber" : (st === "GRAYLINE" ? "" : "hot"));
+          document.getElementById("gl-times").textContent = "sun elevation " + fmt(elev, 1) + " deg";
+        } else {
+          document.getElementById("gl-you").textContent = "--";
+          document.getElementById("gl-state").textContent = "--";
+        }
+      };
+      function sunElevation(date, lat, lon) {
+        var sub = OP.subsolarPoint(date);
+        var H = ((lon - sub.lon)) * OP.DEG;
+        var d = sub.lat * OP.DEG, p = lat * OP.DEG;
+        return Math.asin(Math.sin(p) * Math.sin(d) + Math.cos(p) * Math.cos(d) * Math.cos(H)) * OP.RAD;
+      }
+      this.redraw();
+      this._timer = setInterval(this.redraw, 30000);
+      OP.on("station", this.redraw); OP.on("theme", this.redraw); OP.on("world", this.redraw);
+    },
+    onShow: function () { if (this.redraw) this.redraw(); }
+  });
+
+  /* ===================== FOOTPRINT ===================== */
+  OP.register("footprint", {
+    label: "FOOTPRINT",
+    tagline: "Where your signal is actually landing, plotted from reception reports.",
+    spots: [],
+    init: function (body) {
+      var self = this;
+      var wrap = el("div", "stack");
+
+      var controls = el("div", "stack");
+      var r1 = el("div", "row");
+      r1.innerHTML =
+        '<div class="field" style="flex:1 1 140px"><label>Add spot grid</label><input id="fp-grid" type="text" placeholder="e.g. IO91 or JN58td"></div>' +
+        '<div class="field" style="flex:0 1 120px"><label>Band</label><select id="fp-band"></select></div>';
+      var addBtn = el("button", "btn", "Add spot");
+      var b1 = el("div", "field"); b1.appendChild(el("label", "", "&nbsp;")); b1.appendChild(addBtn);
+      r1.appendChild(b1);
+      controls.appendChild(r1);
+
+      var r2 = el("div", "row");
+      var demoBtn = el("button", "btn", "Load demo footprint");
+      var clearBtn = el("button", "btn ghost", "Clear");
+      r2.appendChild(demoBtn); r2.appendChild(clearBtn);
+      controls.appendChild(r2);
+
+      controls.appendChild(el("hr", "divider"));
+      var r3 = el("div", "stack");
+      r3.innerHTML =
+        '<div class="field"><label>Live fetch via PSK Reporter (needs a CORS proxy)</label>' +
+        '<input id="fp-proxy" type="text" placeholder="https://your-proxy/?url="></div>' +
+        '<p class="note">PSK Reporter blocks direct browser requests, so a permissive CORS proxy is required. ' +
+        'Leave blank to work manually. Live fetch uses your station callsign and the last 15 minutes of spots.</p>';
+      var liveBtn = el("button", "btn", "Fetch live spots");
+      r3.appendChild(liveBtn);
+      controls.appendChild(r3);
+
+      wrap.appendChild(controls);
+
+      var mapHost = el("div"); mapHost.style.textAlign = "center"; mapHost.style.marginTop = "12px";
+      var w = Math.min(body.clientWidth || 680, 680);
+      this.map = OP.makeMap({ width: w, height: w / 2 });
+      mapHost.appendChild(this.map.canvas);
+      wrap.appendChild(mapHost);
+
+      var status = el("p", "note", "No spots loaded. Add a few by grid, load the demo, or fetch live.");
+      status.id = "fp-status";
+      wrap.appendChild(status);
+      body.appendChild(wrap);
+
+      var bandSel = wrap.querySelector("#fp-band");
+      ["40m","30m","20m","17m","15m","12m","10m","6m","2m"].forEach(function (b) {
+        var o = el("option"); o.value = b; o.textContent = b; bandSel.appendChild(o);
+      });
+      bandSel.value = "20m";
+
+      addBtn.addEventListener("click", function () {
+        var g = wrap.querySelector("#fp-grid").value.trim();
+        var ll = OP.gridToLatLon(g);
+        if (!ll) { window.alert("That grid does not look valid."); return; }
+        self.spots.push({ lat: ll.lat, lon: ll.lon, band: bandSel.value, grid: g.toUpperCase() });
+        wrap.querySelector("#fp-grid").value = "";
+        self.redraw();
+      });
+      clearBtn.addEventListener("click", function () { self.spots = []; self.redraw(); });
+      demoBtn.addEventListener("click", function () { self.loadDemo(); });
+      liveBtn.addEventListener("click", function () { self.fetchLive(wrap.querySelector("#fp-proxy").value.trim()); });
+
+      this.loadDemo = function () {
+        var you = OP.gridToLatLon(OP.state.grid) || { lat: 39.5, lon: -78.8 };
+        var sample = [
+          ["IO91vl","20m"],["JN58td","20m"],["JO62qm","17m"],["EM12mp","40m"],
+          ["FN31pr","40m"],["GF15vc","15m"],["PM95tq","20m"],["QF22lb","15m"],
+          ["FK68","20m"],["DM79","40m"],["CN87","30m"],["IL38","10m"],["KP20","17m"]
+        ];
+        self.spots = sample.map(function (s) {
+          var ll = OP.gridToLatLon(s[0]); return { lat: ll.lat, lon: ll.lon, band: s[1], grid: s[0] };
+        });
+        self.redraw();
+        document.getElementById("fp-status").textContent = "Demo footprint loaded (" + self.spots.length + " spots) from " + (OP.state.grid || "default grid") + ".";
+      };
+
+      this.fetchLive = function (proxy) {
+        var st = document.getElementById("fp-status");
+        if (!OP.state.call) { st.textContent = "Set your station callsign in the top rail first."; return; }
+        if (!proxy) { st.textContent = "A CORS proxy URL is required for live fetch. Showing demo instead."; self.loadDemo(); return; }
+        st.textContent = "Fetching reception reports for " + OP.state.call + " ...";
+        var target = "https://retrieve.pskreporter.info/query?senderCallsign=" + encodeURIComponent(OP.state.call) + "&flowStartSeconds=-900";
+        var url = proxy + encodeURIComponent(target);
+        fetch(url).then(function (r) { return r.text(); }).then(function (txt) {
+          var doc = new DOMParser().parseFromString(txt, "text/xml");
+          var rows = doc.getElementsByTagName("receptionReport");
+          var out = [];
+          for (var i = 0; i < rows.length; i++) {
+            var loc = rows[i].getAttribute("receiverLocator");
+            var freq = parseFloat(rows[i].getAttribute("frequency")) / 1e6;
+            var ll = OP.gridToLatLon(loc);
+            if (ll) out.push({ lat: ll.lat, lon: ll.lon, band: bandFor(freq) || "20m", grid: loc });
+          }
+          if (!out.length) { st.textContent = "No spots returned in the last 15 minutes. Try again later or load the demo."; return; }
+          self.spots = out; self.redraw();
+          st.textContent = "Live: " + out.length + " reception reports for " + OP.state.call + " in the last 15 minutes.";
+        }).catch(function () {
+          st.textContent = "Live fetch failed (proxy or network). Showing demo footprint instead.";
+          self.loadDemo();
+        });
+      };
+
+      this.redraw = function () {
+        var you = OP.gridToLatLon(OP.state.grid);
+        var hot = getComputedStyle(document.documentElement).getPropertyValue("--hot").trim();
+        var markers = [], lines = [];
+        if (you) markers.push({ lon: you.lon, lat: you.lat, color: hot, r: 5, ring: true, label: OP.state.call || "YOU" });
+        self.spots.forEach(function (s) {
+          var c = bandColor(s.band);
+          markers.push({ lon: s.lon, lat: s.lat, color: c, r: 3 });
+          if (you) lines.push({ from: you, to: s, color: c });
+        });
+        self.map.draw({ terminator: true, date: new Date(), markers: markers, lines: lines, showSun: true });
+        if (self.spots.length) {
+          var bands = {};
+          self.spots.forEach(function (s) { bands[s.band] = (bands[s.band] || 0) + 1; });
+          var parts = Object.keys(bands).map(function (b) { return b + " x" + bands[b]; });
+          document.getElementById("fp-status").textContent = self.spots.length + " spots plotted: " + parts.join(", ") + ".";
+        }
+      };
+      this.redraw();
+      OP.on("station", this.redraw); OP.on("theme", this.redraw); OP.on("world", this.redraw);
+    },
+    onShow: function () { if (this.redraw) this.redraw(); }
+  });
+
+  /* ===================== SMITH ===================== */
+  OP.register("smith", {
+    label: "SMITH",
+    tagline: "Impedance, reflection, and a two-element match to fifty ohms.",
+    init: function (body) {
+      var self = this;
+      var wrap = el("div", "grid2");
+
+      var left = el("div", "stack");
+      left.innerHTML =
+        '<div class="row">' +
+          '<div class="field" style="flex:1 1 90px"><label>Load R (ohm)</label><input id="sm-r" type="number" value="75" step="any"></div>' +
+          '<div class="field" style="flex:1 1 90px"><label>Load X (ohm)</label><input id="sm-x" type="number" value="40" step="any"></div>' +
+        '</div>' +
+        '<div class="row">' +
+          '<div class="field" style="flex:1 1 90px"><label>Z0 (ohm)</label><input id="sm-z0" type="number" value="50" step="any"></div>' +
+          '<div class="field" style="flex:1 1 90px"><label>Frequency (MHz)</label><input id="sm-f" type="number" value="14.2" step="any"></div>' +
+        '</div>';
+      var meters = el("div", "grid2");
+      meters.innerHTML =
+        '<div class="meter"><div class="mk">SWR</div><div class="mv" id="sm-swr">--</div></div>' +
+        '<div class="meter"><div class="mk">Return loss</div><div class="mv" id="sm-rl">--</div><div class="mu">dB</div></div>' +
+        '<div class="meter"><div class="mk">Reflection</div><div class="mv amber" id="sm-gam">--</div><div class="mu" id="sm-gama">mag / angle</div></div>' +
+        '<div class="meter"><div class="mk">Mismatch loss</div><div class="mv" id="sm-ml">--</div><div class="mu">dB</div></div>';
+      left.appendChild(meters);
+      var matchBox = el("div", "meter");
+      matchBox.innerHTML = '<div class="mk">L-network match to Z0</div><div id="sm-match" class="note" style="margin-top:6px">--</div>';
+      left.appendChild(matchBox);
+      wrap.appendChild(left);
+
+      var right = el("div"); right.style.textAlign = "center";
+      var w = Math.min((body.clientWidth || 600) / 2 - 20, 320); if (w < 240) w = Math.min(body.clientWidth || 320, 320);
+      this.size = w;
+      this.cv = document.createElement("canvas");
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      this.cv.width = w * dpr; this.cv.height = w * dpr;
+      this.cv.style.width = w + "px"; this.cv.style.height = w + "px";
+      this.ctx = this.cv.getContext("2d"); this.ctx.scale(dpr, dpr);
+      right.appendChild(this.cv);
+      right.appendChild(el("div", "legend", '<span><b>&#9679;</b> load impedance</span><span>top half inductive, lower half capacitive</span>'));
+      wrap.appendChild(right);
+      body.appendChild(wrap);
+
+      ["sm-r","sm-x","sm-z0","sm-f"].forEach(function (id) {
+        wrap.querySelector("#" + id).addEventListener("input", function () { self.update(); });
+      });
+
+      this.update = function () {
+        var R = parseFloat(wrap.querySelector("#sm-r").value);
+        var X = parseFloat(wrap.querySelector("#sm-x").value);
+        var Z0 = parseFloat(wrap.querySelector("#sm-z0").value) || 50;
+        var f = parseFloat(wrap.querySelector("#sm-f").value) || 14.2;
+        if (isNaN(R) || isNaN(X)) return;
+        /* gamma = (z-1)/(z+1) normalized */
+        var zr = R / Z0, zi = X / Z0;
+        var dr = zr + 1, di = zi;
+        var nr = zr - 1, ni = zi;
+        var den = dr * dr + di * di;
+        var gr = (nr * dr + ni * di) / den;
+        var gi = (ni * dr - nr * di) / den;
+        var gmag = Math.sqrt(gr * gr + gi * gi);
+        var gang = Math.atan2(gi, gr) * OP.RAD;
+        var swr = gmag >= 1 ? Infinity : (1 + gmag) / (1 - gmag);
+        var rl = gmag <= 0 ? Infinity : -20 * Math.log10(gmag);
+        var ml = -10 * Math.log10(1 - gmag * gmag);
+        document.getElementById("sm-swr").textContent = isFinite(swr) ? fmt(swr, 2) + ":1" : "open";
+        document.getElementById("sm-rl").textContent = isFinite(rl) ? fmt(rl, 1) : "inf";
+        document.getElementById("sm-gam").textContent = fmt(gmag, 3);
+        document.getElementById("sm-gama").textContent = fmt(gmag, 3) + " / " + fmt(gang, 0) + " deg";
+        document.getElementById("sm-ml").textContent = fmt(ml, 2);
+        self.draw(gr, gi);
+        self.match(R, X, Z0, f);
+      };
+
+      this.match = function (RL, XL, R0, f) {
+        var w = 2 * Math.PI * f * 1e6;
+        function simulate(shuntFirst, Bsh, Xse) {
+          /* returns input gamma magnitude after applying network toward source */
+          var zr, zi;
+          if (shuntFirst) {
+            /* shunt B across load, then series X */
+            var yl_r = RL / (RL * RL + XL * XL), yl_i = -XL / (RL * RL + XL * XL);
+            var yt_r = yl_r, yt_i = yl_i + Bsh;
+            var yd = yt_r * yt_r + yt_i * yt_i;
+            zr = yt_r / yd; zi = -yt_i / yd;
+            zi += Xse;
+          } else {
+            /* series X with load, then shunt B */
+            zr = RL; zi = XL + Xse;
+            var yr = zr / (zr * zr + zi * zi), yi = -zi / (zr * zr + zi * zi);
+            yi += Bsh;
+            var yd2 = yr * yr + yi * yi;
+            zr = yr / yd2; zi = -yi / yd2;
+          }
+          var dr = zr / R0 + 1, di = zi / R0, nr = zr / R0 - 1, ni = zi / R0;
+          var den = dr * dr + di * di;
+          var gr = (nr * dr + ni * di) / den, gi = (ni * dr - nr * di) / den;
+          return Math.sqrt(gr * gr + gi * gi);
+        }
+        var sols = [];
+        var GL = RL / (RL * RL + XL * XL), BL = -XL / (RL * RL + XL * XL);
+        /* topology A: shunt at load. requires GL/ (1/R0)*... Re(Z1)=R0 */
+        var disc = GL / R0 - GL * GL;
+        if (disc >= 0) {
+          [1, -1].forEach(function (sgn) {
+            var Bp = sgn * Math.sqrt(disc);
+            var Bsh = Bp - BL;
+            var denom = GL * GL + Bp * Bp;
+            var Xse = Bp / denom;
+            if (simulate(true, Bsh, Xse) < 1e-3) sols.push({ shuntFirst: true, B: Bsh, X: Xse });
+          });
+        }
+        /* topology B: series at load, shunt at source. requires R0>=RL */
+        var disc2 = RL * (R0 - RL);
+        if (disc2 >= 0) {
+          [1, -1].forEach(function (sgn) {
+            var Xse = -XL + sgn * Math.sqrt(disc2);
+            var zr = RL, zi = XL + Xse;
+            var yi = -zi / (zr * zr + zi * zi);
+            var Bsh = -yi;
+            if (simulate(false, Bsh, Xse) < 1e-3) sols.push({ shuntFirst: false, B: Bsh, X: Xse });
+          });
+        }
+        var out = document.getElementById("sm-match");
+        if (!sols.length) { out.textContent = "Load already at Z0, or no simple two-element match found."; return; }
+        function comp(X) {
+          if (Math.abs(X) < 1e-9) return "short";
+          if (X > 0) { var L = X / w; return ind(L); }
+          var C = -1 / (w * X); return cap(C);
+        }
+        function compShunt(B) {
+          if (Math.abs(B) < 1e-12) return "open";
+          if (B > 0) { var C = B / w; return cap(C); }
+          var L = -1 / (w * B); return ind(L);
+        }
+        function ind(L) { var nH = L * 1e9; return (nH >= 1000 ? fmt(nH / 1000, 3) + " uH" : fmt(nH, 1) + " nH") + " (coil)"; }
+        function cap(C) { var pF = C * 1e12; return (pF >= 1000 ? fmt(pF / 1000, 3) + " nF" : fmt(pF, 1) + " pF") + " (cap)"; }
+        var html = sols.slice(0, 2).map(function (s, i) {
+          var a = s.shuntFirst
+            ? "shunt " + compShunt(s.B) + " at load, then series " + comp(s.X)
+            : "series " + comp(s.X) + " at load, then shunt " + compShunt(s.B) + " at source";
+          return "<b>Solution " + (i + 1) + ":</b> " + a;
+        }).join("<br>");
+        out.innerHTML = html + "<br><span style='color:var(--ink-faint)'>at " + f + " MHz, to " + R0 + " ohm</span>";
+      };
+
+      this.draw = function (gr, gi) {
+        var ctx = this.ctx, S = this.size, cx = S / 2, cy = S / 2, R = S / 2 - 8;
+        function v(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+        ctx.clearRect(0, 0, S, S);
+        ctx.fillStyle = v("--panel-inset"); ctx.beginPath(); ctx.arc(cx, cy, R + 4, 0, 7); ctx.fill();
+        ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.clip();
+        ctx.strokeStyle = v("--map-grat"); ctx.lineWidth = 0.7;
+        /* resistance circles */
+        [0, 0.2, 0.5, 1, 2, 5].forEach(function (r) {
+          var cc = r / (1 + r), rad = 1 / (1 + r);
+          ctx.beginPath(); ctx.arc(cx + cc * R, cy, rad * R, 0, 7);
+          ctx.strokeStyle = (r === 1) ? v("--amber-soft") : v("--map-grat"); ctx.stroke();
+        });
+        /* reactance arcs */
+        [0.2, 0.5, 1, 2, 5].forEach(function (x) {
+          [1, -1].forEach(function (sgn) {
+            var xc = sgn * (1 / x);
+            ctx.beginPath(); ctx.arc(cx + R, cy - xc * R, (1 / x) * R, 0, 7);
+            ctx.strokeStyle = v("--map-grat"); ctx.stroke();
+          });
+        });
+        ctx.restore();
+        ctx.strokeStyle = v("--line"); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.strokeStyle = v("--map-grat"); ctx.stroke();
+        /* plot point: gamma real -> x, gamma imag -> up */
+        var px = cx + gr * R, py = cy - gi * R;
+        ctx.strokeStyle = v("--phosphor"); ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke(); ctx.globalAlpha = 1;
+        ctx.fillStyle = v("--hot"); ctx.beginPath(); ctx.arc(px, py, 6, 0, 7); ctx.fill();
+        ctx.strokeStyle = v("--hot"); ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.arc(px, py, 10, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
+      };
+
+      this.update();
+      OP.on("theme", function () { self.update(); });
+    },
+    onShow: function () { if (this.update) this.update(); }
+  });
+
+  /* ===================== FEEDLINE ===================== */
+  OP.register("feedline", {
+    label: "FEEDLINE",
+    tagline: "Cut wire to length and reckon what the coax costs you.",
+    coax: {
+      "RG-58":   { vf: 0.66, loss100: 4.5, z: 50 },
+      "RG-8X":   { vf: 0.82, loss100: 3.2, z: 50 },
+      "RG-213":  { vf: 0.66, loss100: 1.9, z: 50 },
+      "RG-6":    { vf: 0.85, loss100: 2.0, z: 75 },
+      "RG-174":  { vf: 0.66, loss100: 8.8, z: 50 },
+      "LMR-240": { vf: 0.84, loss100: 1.9, z: 50 },
+      "LMR-400": { vf: 0.85, loss100: 1.1, z: 50 },
+      "LMR-600": { vf: 0.87, loss100: 0.7, z: 50 },
+      "LDF4-50A":{ vf: 0.88, loss100: 0.6, z: 50 }
+    },
+    init: function (body) {
+      var self = this;
+      var wrap = el("div", "grid2");
+
+      var ant = el("div", "stack");
+      ant.innerHTML =
+        '<div class="label">Antenna cutting</div>' +
+        '<div class="row">' +
+          '<div class="field" style="flex:1 1 120px"><label>Frequency (MHz)</label><input id="fl-f" type="number" value="7.15" step="any"></div>' +
+          '<div class="field" style="flex:1 1 120px"><label>Wire velocity factor</label><input id="fl-vf" type="number" value="0.95" step="0.01"></div>' +
+        '</div>';
+      var antMeters = el("div", "stack");
+      antMeters.innerHTML =
+        '<div class="meter"><div class="mk">Half-wave dipole (tip to tip)</div><div class="mv amber" id="fl-dip">--</div><div class="mu" id="fl-dipleg">each leg</div></div>' +
+        '<div class="meter"><div class="mk">Quarter-wave vertical / radial</div><div class="mv" id="fl-vert">--</div></div>' +
+        '<div class="meter"><div class="mk">End-fed half-wave</div><div class="mv" id="fl-efhw">--</div><div class="mu">full radiator</div></div>';
+      ant.appendChild(antMeters);
+      wrap.appendChild(ant);
+
+      var line = el("div", "stack");
+      line.innerHTML =
+        '<div class="label">Feedline loss</div>' +
+        '<div class="row">' +
+          '<div class="field" style="flex:1 1 120px"><label>Coax type</label><select id="fl-type"></select></div>' +
+          '<div class="field" style="flex:1 1 90px"><label>Length</label><input id="fl-len" type="number" value="100" step="any"></div>' +
+          '<div class="field" style="flex:0 1 80px"><label>Units</label><select id="fl-unit"><option value="ft">feet</option><option value="m">meters</option></select></div>' +
+        '</div>' +
+        '<div class="row">' +
+          '<div class="field" style="flex:1 1 120px"><label>Load SWR</label><input id="fl-swr" type="number" value="1.5" step="0.1"></div>' +
+        '</div>';
+      var lineMeters = el("div", "stack");
+      lineMeters.innerHTML =
+        '<div class="meter"><div class="mk">Matched loss</div><div class="mv" id="fl-ml">--</div><div class="mu">dB at this length and frequency</div></div>' +
+        '<div class="meter"><div class="mk">Total loss with SWR</div><div class="mv hot" id="fl-tl">--</div><div class="mu" id="fl-pwr">power delivered</div></div>' +
+        '<div class="meter"><div class="mk">Velocity factor / Z0</div><div class="mv" id="fl-vfz">--</div><div class="mu">electrical length factor</div></div>';
+      line.appendChild(lineMeters);
+      wrap.appendChild(line);
+      body.appendChild(wrap);
+
+      var typeSel = wrap.querySelector("#fl-type");
+      Object.keys(this.coax).forEach(function (k) { var o = el("option"); o.value = k; o.textContent = k; typeSel.appendChild(o); });
+      typeSel.value = "RG-8X";
+
+      wrap.querySelectorAll("input,select").forEach(function (inp) {
+        inp.addEventListener("input", function () { self.update(); });
+      });
+
+      this.update = function () {
+        var f = parseFloat(wrap.querySelector("#fl-f").value);
+        var vf = parseFloat(wrap.querySelector("#fl-vf").value) || 0.95;
+        if (f > 0) {
+          var halfFt = 468 * vf / 0.95 / f; /* 468/f baseline already assumes ~0.95 */
+          halfFt = 468 / f * (vf / 0.95);
+          var legFt = halfFt / 2;
+          var vertFt = 234 / f * (vf / 0.95);
+          document.getElementById("fl-dip").textContent = fmt(halfFt, 2) + " ft / " + fmt(halfFt * 0.3048, 2) + " m";
+          document.getElementById("fl-dipleg").textContent = "each leg " + fmt(legFt, 2) + " ft / " + fmt(legFt * 0.3048, 2) + " m";
+          document.getElementById("fl-vert").textContent = fmt(vertFt, 2) + " ft / " + fmt(vertFt * 0.3048, 2) + " m";
+          document.getElementById("fl-efhw").textContent = fmt(halfFt, 2) + " ft / " + fmt(halfFt * 0.3048, 2) + " m";
+        }
+        var type = typeSel.value, c = self.coax[type];
+        var lenIn = parseFloat(wrap.querySelector("#fl-len").value) || 0;
+        var unit = wrap.querySelector("#fl-unit").value;
+        var lenFt = unit === "m" ? lenIn / 0.3048 : lenIn;
+        var swr = parseFloat(wrap.querySelector("#fl-swr").value) || 1;
+        /* matched loss scales ~ sqrt(f); loss100 referenced near 100 MHz */
+        var lossPer100 = c.loss100 * Math.sqrt((f || 0.001) / 100);
+        var ml = lossPer100 * lenFt / 100;
+        document.getElementById("fl-ml").textContent = fmt(ml, 2) + " dB";
+        /* total loss with SWR */
+        var gl = (swr - 1) / (swr + 1);
+        var a = Math.pow(10, ml / 10);
+        var totalDb = 10 * Math.log10((a * a - gl * gl) / (a * (1 - gl * gl)));
+        if (!isFinite(totalDb) || totalDb < ml) totalDb = ml;
+        document.getElementById("fl-tl").textContent = fmt(totalDb, 2) + " dB";
+        document.getElementById("fl-pwr").textContent = "power delivered " + fmt(Math.pow(10, -totalDb / 10) * 100, 1) + " percent";
+        document.getElementById("fl-vfz").textContent = c.vf + " / " + c.z + " ohm";
+      };
+      this.update();
+    },
+    onShow: function () { if (this.update) this.update(); }
+  });
+
+})();
+
+</script>
+<script>
+/* ===================== OPERATOR module: REPEATER ===================== */
+(function () {
+  "use strict";
+  var OP = window.OP;
+  var fmt = OP.fmt;
+  function el(tag, cls, html) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+  function cssv(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+  /* US state bounding boxes [name, latMin, latMax, lonMin, lonMax].
+     Distance to box (0 if inside) ranks border states correctly, which centroids do not. */
+  var STATES = [
+    ["Alabama",30.1,35.0,-88.5,-84.9],["Alaska",51.2,71.5,-179.1,-129.9],["Arizona",31.3,37.0,-114.8,-109.0],
+    ["Arkansas",33.0,36.5,-94.6,-89.6],["California",32.5,42.0,-124.4,-114.1],["Colorado",37.0,41.0,-109.1,-102.0],
+    ["Connecticut",40.95,42.05,-73.7,-71.8],["Delaware",38.45,39.84,-75.8,-75.0],["District of Columbia",38.79,39.0,-77.12,-76.91],
+    ["Florida",24.5,31.0,-87.6,-80.0],["Georgia",30.4,35.0,-85.6,-80.8],["Hawaii",18.9,22.2,-160.3,-154.8],
+    ["Idaho",42.0,49.0,-117.2,-111.0],["Illinois",36.97,42.5,-91.5,-87.0],["Indiana",37.8,41.8,-88.1,-84.8],
+    ["Iowa",40.4,43.5,-96.6,-90.1],["Kansas",37.0,40.0,-102.1,-94.6],["Kentucky",36.5,39.15,-89.6,-81.9],
+    ["Louisiana",28.9,33.0,-94.0,-88.8],["Maine",43.0,47.5,-71.1,-66.9],["Maryland",37.9,39.72,-79.5,-75.0],
+    ["Massachusetts",41.2,42.9,-73.5,-69.9],["Michigan",41.7,48.3,-90.4,-82.4],["Minnesota",43.5,49.4,-97.2,-89.5],
+    ["Mississippi",30.2,35.0,-91.7,-88.1],["Missouri",36.0,40.6,-95.8,-89.1],["Montana",44.4,49.0,-116.1,-104.0],
+    ["Nebraska",40.0,43.0,-104.1,-95.3],["Nevada",35.0,42.0,-120.0,-114.0],["New Hampshire",42.7,45.3,-72.6,-70.6],
+    ["New Jersey",38.9,41.4,-75.6,-73.9],["New Mexico",31.3,37.0,-109.1,-103.0],["New York",40.5,45.0,-79.8,-71.9],
+    ["North Carolina",33.8,36.6,-84.3,-75.4],["North Dakota",45.9,49.0,-104.1,-96.6],["Ohio",38.4,42.0,-84.8,-80.5],
+    ["Oklahoma",33.6,37.0,-103.0,-94.4],["Oregon",41.9,46.3,-124.6,-116.5],["Pennsylvania",39.7,42.3,-80.5,-74.7],
+    ["Rhode Island",41.1,42.0,-71.9,-71.1],["South Carolina",32.0,35.2,-83.4,-78.5],["South Dakota",42.5,45.95,-104.1,-96.4],
+    ["Tennessee",35.0,36.7,-90.3,-81.6],["Texas",25.8,36.5,-106.7,-93.5],["Utah",37.0,42.0,-114.1,-109.0],
+    ["Vermont",42.7,45.0,-73.4,-71.5],["Virginia",36.5,39.5,-83.7,-75.2],["Washington",45.5,49.0,-124.8,-116.9],
+    ["West Virginia",37.2,40.65,-82.7,-77.7],["Wisconsin",42.5,47.1,-92.9,-86.8],["Wyoming",41.0,45.0,-111.1,-104.1]
+  ];
+
+  function nearestStates(lat, lon, n) {
+    return STATES.map(function (s) {
+      var dLat = Math.max(s[1] - lat, 0, lat - s[2]);
+      var dLon = Math.max(s[3] - lon, 0, lon - s[4]) * Math.cos(lat * OP.DEG);
+      return { name: s[0], d: Math.sqrt(dLat * dLat + dLon * dLon) };
+    }).sort(function (a, b) { return a.d - b.d; }).slice(0, n).map(function (s) { return s.name; });
+  }
+
+  function pick(o, keys, d) {
+    for (var i = 0; i < keys.length; i++) { var v = o[keys[i]]; if (v !== undefined && v !== null && v !== "") return v; }
+    return d === undefined ? "" : d;
+  }
+  function yes(v) { return /^(yes|y|true|1)$/i.test(("" + v).trim()); }
+
+  function normalizeRB(rec) {
+    var out = parseFloat(pick(rec, ["Frequency", "frequency"], 0));
+    var inp = parseFloat(pick(rec, ["Input Freq", "Input Frequency", "input_freq"], 0));
+    var modes = [];
+    if (yes(pick(rec, ["FM Analog", "FM"]))) modes.push("FM");
+    if (yes(pick(rec, ["DMR"]))) modes.push("DMR");
+    if (yes(pick(rec, ["D-Star", "D-STAR", "DStar"]))) modes.push("D-STAR");
+    if (yes(pick(rec, ["System Fusion", "YSF", "Fusion"]))) modes.push("Fusion");
+    if (yes(pick(rec, ["NXDN"]))) modes.push("NXDN");
+    if (yes(pick(rec, ["P25"]))) modes.push("P25");
+    if (yes(pick(rec, ["M17"]))) modes.push("M17");
+    if (!modes.length) modes.push("FM");
+    return {
+      call: pick(rec, ["Callsign", "callsign"], "?"),
+      out: out, inp: inp,
+      offset: (out && inp) ? (inp - out) : null,
+      toneUp: pick(rec, ["PL", "TX PL", "Uplink Tone"], ""),
+      toneDown: pick(rec, ["TSQ", "RX PL", "Downlink Tone"], ""),
+      modes: modes,
+      cc: pick(rec, ["DMR Color Code", "Color Code"], ""),
+      dmrid: pick(rec, ["DMR ID"], ""),
+      echolink: pick(rec, ["EchoLink Node Number", "EchoLink"], ""),
+      irlp: pick(rec, ["IRLP Node Number", "IRLP"], ""),
+      allstar: pick(rec, ["AllStar Node Number", "AllStar"], ""),
+      use: pick(rec, ["Use"], ""),
+      status: pick(rec, ["Operational Status", "Status"], ""),
+      city: pick(rec, ["Nearest City", "Landmark"], ""),
+      county: pick(rec, ["County"], ""),
+      state: pick(rec, ["State"], ""),
+      sponsor: pick(rec, ["Repeater Sponsor", "Sponsor"], ""),
+      notes: pick(rec, ["Notes"], ""),
+      lat: parseFloat(pick(rec, ["Lat", "latitude"], 0)),
+      lon: parseFloat(pick(rec, ["Long", "longitude"], 0))
+    };
+  }
+
+  function parseNets(notes) {
+    if (!notes) return [];
+    var out = [];
+    notes.split(/[.;\n]/).forEach(function (cl) {
+      if (/net\b/i.test(cl) && /(mon|tue|wed|thu|fri|sat|sun)/i.test(cl)) out.push(cl.trim());
+    });
+    return out;
+  }
+
+  var DEMO = [
+    { call: "W3DMO", out: 146.940, inp: 146.340, offset: -0.6, toneUp: "127.3", toneDown: "127.3", modes: ["FM"], echolink: "44512", irlp: "", allstar: "", use: "OPEN", status: "On-air", city: "Cumberland", county: "Allegany", state: "Maryland", sponsor: "Sample ARC", notes: "Weekly net Tuesday 8:00 PM local. Open to all.", lat: 39.652, lon: -78.762, _demo: true },
+    { call: "K3DMO", out: 443.500, inp: 448.500, offset: 5.0, toneUp: "100.0", toneDown: "", modes: ["FM", "Fusion"], echolink: "", irlp: "", allstar: "49233", use: "OPEN", status: "On-air", city: "Frostburg", county: "Allegany", state: "Maryland", sponsor: "Sample Group", notes: "Sunday evening swap net 1930 local.", lat: 39.658, lon: -78.928, _demo: true },
+    { call: "W8DMO", out: 147.165, inp: 147.765, offset: 0.6, toneUp: "103.5", toneDown: "103.5", modes: ["FM"], echolink: "", irlp: "7654", allstar: "", use: "OPEN", status: "On-air", city: "Keyser", county: "Mineral", state: "West Virginia", sponsor: "Sample WV Club", notes: "Thursday traffic net 2100 UTC.", lat: 39.444, lon: -78.973, _demo: true },
+    { call: "N3DMO", out: 442.100, inp: 447.100, offset: 5.0, toneUp: "131.8", toneDown: "", modes: ["DMR"], cc: "1", dmrid: "313xxx", use: "OPEN", status: "On-air", city: "Bedford", county: "Bedford", state: "Pennsylvania", sponsor: "Sample DMR Net", notes: "Brandmeister TG 3124. Statewide net Monday 8 PM.", lat: 40.018, lon: -78.504, _demo: true },
+    { call: "K8DMO", out: 145.450, inp: 144.850, offset: -0.6, toneUp: "146.2", toneDown: "146.2", modes: ["FM", "D-STAR"], use: "OPEN", status: "On-air", city: "Romney", county: "Hampshire", state: "West Virginia", sponsor: "Sample Valley ARC", notes: "ARES net Wednesday 1930 local.", lat: 39.341, lon: -78.756, _demo: true }
+  ];
+
+  OP.register("repeater", {
+    label: "REPEATER",
+    tagline: "Find what is on the air near you, how to program it, and when the nets meet.",
+    repeaters: [],
+    selected: null,
+    init: function (body) {
+      var self = this;
+      self.center = null;
+      self.unit = OP.store.get("rptr.unit", "mi");
+      self.range = parseFloat(OP.store.get("rptr.range", "50"));
+      self.blips = [];
+
+      var wrap = el("div", "stack");
+
+      /* control deck */
+      var deck = el("div", "stack");
+      var posRow = el("div", "row");
+      posRow.innerHTML =
+        '<div class="field" style="flex:1 1 120px"><label>Your latitude</label><input id="rp-lat" type="number" step="any" placeholder="39.65"></div>' +
+        '<div class="field" style="flex:1 1 120px"><label>Your longitude</label><input id="rp-lon" type="number" step="any" placeholder="-78.76"></div>' +
+        '<div class="field" style="flex:0 1 90px"><label>Range</label><input id="rp-range" type="number" step="any" value="' + self.range + '"></div>' +
+        '<div class="field" style="flex:0 1 80px"><label>Units</label><select id="rp-unit"><option value="mi">miles</option><option value="km">km</option></select></div>';
+      deck.appendChild(posRow);
+
+      var posBtns = el("div", "row");
+      var gpsBtn = el("button", "btn primary", "Use GPS");
+      var gridBtn = el("button", "btn ghost", "Use my grid");
+      posBtns.appendChild(gpsBtn); posBtns.appendChild(gridBtn);
+      deck.appendChild(posBtns);
+
+      deck.appendChild(el("hr", "divider"));
+
+      var srcRow = el("div", "stack");
+      srcRow.innerHTML =
+        '<div class="row">' +
+          '<div class="field" style="flex:1 1 200px"><label>States to search (auto from position)</label><input id="rp-states" type="text" placeholder="Maryland, West Virginia, Pennsylvania"></div>' +
+          '<div class="field" style="flex:0 1 90px"><label>Nearby states</label><input id="rp-nstates" type="number" value="3" min="1" max="6"></div>' +
+        '</div>' +
+        '<div class="field"><label>CORS proxy for RepeaterBook (prefix ending in ?url=)</label><input id="rp-proxy" type="text" placeholder="https://your-proxy/?url="></div>';
+      deck.appendChild(srcRow);
+
+      var findBtns = el("div", "row");
+      var findBtn = el("button", "btn primary", "Find repeaters");
+      var refreshBtn = el("button", "btn", "Refresh data");
+      var demoBtn = el("button", "btn ghost", "Load sample set");
+      findBtns.appendChild(findBtn); findBtns.appendChild(refreshBtn); findBtns.appendChild(demoBtn);
+      deck.appendChild(findBtns);
+
+      var status = el("p", "note", "Set your position, then find repeaters. Live data needs a CORS proxy because RepeaterBook blocks direct browser requests. The sample set works offline to show the layout.");
+      status.id = "rp-status";
+      deck.appendChild(status);
+      wrap.appendChild(deck);
+
+      wrap.appendChild(el("hr", "divider"));
+
+      /* map + scope (toggle) + list + detail */
+      var main = el("div", "grid2");
+      var viewCol = el("div");
+      var S = Math.min((body.clientWidth || 640) / 2 - 18, 360); if (S < 260) S = Math.min(body.clientWidth || 320, 360);
+      self.size = S;
+      self.view = OP.store.get("rptr.view", "map");
+
+      var toggle = el("div", "row"); toggle.style.marginBottom = "8px";
+      var mapBtn = el("button", "btn", "Map");
+      var scopeBtn = el("button", "btn", "Scope");
+      toggle.appendChild(mapBtn); toggle.appendChild(scopeBtn);
+      viewCol.appendChild(toggle);
+
+      var mapDiv = el("div"); mapDiv.id = "rp-map";
+      mapDiv.style.width = "100%"; mapDiv.style.height = S + "px";
+      mapDiv.style.borderRadius = "8px"; mapDiv.style.overflow = "hidden";
+      mapDiv.style.border = "1px solid var(--line)"; mapDiv.style.background = "var(--panel-inset)";
+      viewCol.appendChild(mapDiv);
+
+      var scopeWrap = el("div"); scopeWrap.id = "rp-scope-wrap"; scopeWrap.style.textAlign = "center"; scopeWrap.style.display = "none";
+      self.cv = document.createElement("canvas");
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      self.cv.width = S * dpr; self.cv.height = S * dpr;
+      self.cv.style.width = S + "px"; self.cv.style.height = S + "px";
+      self.cv.style.cursor = "crosshair";
+      self.ctx = self.cv.getContext("2d"); self.ctx.scale(dpr, dpr);
+      scopeWrap.appendChild(self.cv);
+      scopeWrap.appendChild(el("div", "legend", '<span><b>north up</b></span><span>rings mark range</span><span>click a blip for detail</span>'));
+      viewCol.appendChild(scopeWrap);
+
+      var mapNote = el("p", "note", ""); mapNote.id = "rp-mapnote"; mapNote.style.marginTop = "6px";
+      viewCol.appendChild(mapNote);
+      main.appendChild(viewCol);
+
+      var listWrap = el("div");
+      listWrap.innerHTML = '<div class="label" style="margin-bottom:8px">Nearby repeaters</div>';
+      var list = el("div", "stack"); list.id = "rp-list"; list.style.maxHeight = S + "px"; list.style.overflowY = "auto";
+      list.appendChild(el("p", "note", "Nothing plotted yet."));
+      listWrap.appendChild(list);
+      main.appendChild(listWrap);
+      wrap.appendChild(main);
+
+      var detail = el("div"); detail.id = "rp-detail"; detail.style.marginTop = "14px";
+      wrap.appendChild(detail);
+
+      body.appendChild(wrap);
+
+      /* restore persisted */
+      var savedProxy = OP.store.get("proxy", "");
+      if (savedProxy) wrap.querySelector("#rp-proxy").value = savedProxy;
+      var savedLat = OP.store.get("rptr.lat", ""), savedLon = OP.store.get("rptr.lon", "");
+      if (savedLat) wrap.querySelector("#rp-lat").value = savedLat;
+      if (savedLon) wrap.querySelector("#rp-lon").value = savedLon;
+      wrap.querySelector("#rp-unit").value = self.unit;
+
+      function readCenter() {
+        var la = parseFloat(wrap.querySelector("#rp-lat").value);
+        var lo = parseFloat(wrap.querySelector("#rp-lon").value);
+        if (isNaN(la) || isNaN(lo)) return null;
+        return { lat: la, lon: lo };
+      }
+      function setCenter(la, lo) {
+        wrap.querySelector("#rp-lat").value = fmt(la, 5);
+        wrap.querySelector("#rp-lon").value = fmt(lo, 5);
+        OP.store.set("rptr.lat", fmt(la, 5)); OP.store.set("rptr.lon", fmt(lo, 5));
+        self.center = { lat: la, lon: lo };
+        autoStates();
+        if (self.lmap && self.view === "map") self.lmap.setView([la, lo], zoomForRange());
+        self.render();
+      }
+      function autoStates() {
+        var c = readCenter(); if (!c) return;
+        var n = parseInt(wrap.querySelector("#rp-nstates").value, 10) || 3;
+        wrap.querySelector("#rp-states").value = nearestStates(c.lat, c.lon, n).join(", ");
+      }
+
+      /* if station grid already set, seed center */
+      if (!savedLat && OP.state.grid) {
+        var g = OP.gridToLatLon(OP.state.grid);
+        if (g) { wrap.querySelector("#rp-lat").value = fmt(g.lat, 5); wrap.querySelector("#rp-lon").value = fmt(g.lon, 5); }
+      }
+      self.center = readCenter();
+      autoStates();
+
+      gpsBtn.addEventListener("click", function () {
+        var st = document.getElementById("rp-status");
+        if (!navigator.geolocation) { st.textContent = "This browser does not expose GPS. Enter coordinates or use your grid."; return; }
+        st.textContent = "Asking the browser for your location ...";
+        navigator.geolocation.getCurrentPosition(function (p) {
+          setCenter(p.coords.latitude, p.coords.longitude);
+          st.textContent = "Position set from GPS. Now find repeaters.";
+        }, function (err) {
+          st.textContent = "GPS unavailable (" + (err && err.message ? err.message : "denied") + "). Enter coordinates or use your grid.";
+        }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+      });
+      gridBtn.addEventListener("click", function () {
+        var g = OP.gridToLatLon(OP.state.grid);
+        if (!g) { document.getElementById("rp-status").textContent = "Set your grid square in the top rail first."; return; }
+        setCenter(g.lat, g.lon);
+        document.getElementById("rp-status").textContent = "Position set from grid " + OP.state.grid.toUpperCase() + ".";
+      });
+
+      wrap.querySelector("#rp-range").addEventListener("input", function () {
+        self.range = parseFloat(this.value) || 50; OP.store.set("rptr.range", "" + self.range); self.render();
+      });
+      wrap.querySelector("#rp-unit").addEventListener("change", function () {
+        self.unit = this.value; OP.store.set("rptr.unit", self.unit); self.render();
+      });
+      ["rp-lat", "rp-lon"].forEach(function (id) {
+        wrap.querySelector("#" + id).addEventListener("change", function () { self.center = readCenter(); autoStates(); if (self.lmap && self.center && self.view === "map") self.lmap.setView([self.center.lat, self.center.lon], self.lmap.getZoom()); self.render(); });
+      });
+      wrap.querySelector("#rp-nstates").addEventListener("change", autoStates);
+      wrap.querySelector("#rp-proxy").addEventListener("change", function () { OP.store.set("proxy", this.value.trim()); });
+
+      findBtn.addEventListener("click", function () { self.find(false); });
+      refreshBtn.addEventListener("click", function () { self.find(true); });
+      demoBtn.addEventListener("click", function () { self.loadDemo(); });
+
+      self.loadDemo = function () {
+        if (!self.center) self.center = { lat: 39.652, lon: -78.762 };
+        if (!readCenter()) { wrap.querySelector("#rp-lat").value = "39.65200"; wrap.querySelector("#rp-lon").value = "-78.76200"; self.center = readCenter(); }
+        self.repeaters = DEMO.slice();
+        self.demo = true;
+        document.getElementById("rp-status").textContent = "Sample set loaded (" + self.repeaters.length + " repeaters near Cumberland). These are for layout, verify before use. Run Find repeaters for live data.";
+        self.render();
+      };
+
+      self.find = function (force) {
+        var st = document.getElementById("rp-status");
+        var c = readCenter();
+        if (!c) { st.textContent = "Set your position first, by GPS, grid, or by typing coordinates."; return; }
+        self.center = c;
+        var states = wrap.querySelector("#rp-states").value.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+        if (!states.length) { autoStates(); states = wrap.querySelector("#rp-states").value.split(",").map(function (s) { return s.trim(); }).filter(Boolean); }
+        var proxy = wrap.querySelector("#rp-proxy").value.trim();
+        if (proxy) OP.store.set("proxy", proxy);
+        st.textContent = "Loading " + states.join(", ") + " ...";
+        self.demo = false;
+
+        var collected = [], pending = states.length, hadError = false;
+        states.forEach(function (stName) {
+          var cacheKey = "rptr.cache." + stName;
+          var cached = OP.store.getJSON(cacheKey, null);
+          var fresh = cached && (Date.now() - cached.t < 7 * 86400000);
+          if (fresh && !force) { collected = collected.concat(cached.r); done(); return; }
+          if (!proxy) {
+            if (cached) { collected = collected.concat(cached.r); }
+            else { hadError = true; }
+            done(); return;
+          }
+          var target = "https://www.repeaterbook.com/api/export.php?country=United States&state=" + encodeURIComponent(stName);
+          fetch(proxy + encodeURIComponent(target)).then(function (r) { return r.json(); }).then(function (data) {
+            var rows = (data && (data.results || data.Results)) || (Array.isArray(data) ? data : []);
+            var norm = rows.map(normalizeRB).filter(function (r) { return r.lat && r.lon; });
+            OP.store.setJSON(cacheKey, { t: Date.now(), r: norm });
+            collected = collected.concat(norm);
+            done();
+          }).catch(function () { hadError = true; done(); });
+        });
+
+        function done() {
+          if (--pending > 0) return;
+          if (!collected.length) {
+            if (hadError && !proxy) st.textContent = "Live fetch needs a CORS proxy. Showing the sample set instead.";
+            else if (hadError) st.textContent = "Could not reach RepeaterBook through that proxy. Showing the sample set instead.";
+            else st.textContent = "No repeaters returned for those states.";
+            if (hadError) { self.loadDemo(); return; }
+          }
+          /* dedupe by call+out */
+          var seen = {}, uniq = [];
+          collected.forEach(function (r) { var k = r.call + "_" + r.out; if (!seen[k]) { seen[k] = 1; uniq.push(r); } });
+          self.repeaters = uniq;
+          var within = self.withinRange().length;
+          st.textContent = uniq.length + " repeaters loaded, " + within + " within " + self.range + " " + self.unit + ". Data from RepeaterBook.";
+          self.render();
+        }
+      };
+
+      self.distOf = function (r) {
+        var gc = OP.greatCircle(self.center.lat, self.center.lon, r.lat, r.lon);
+        return { d: self.unit === "km" ? gc.km : gc.mi, brg: gc.bearing, km: gc.km };
+      };
+      self.withinRange = function () {
+        if (!self.center) return [];
+        return self.repeaters.map(function (r) { var m = self.distOf(r); r._d = m.d; r._brg = m.brg; return r; })
+          .filter(function (r) { return r._d <= self.range; })
+          .sort(function (a, b) { return a._d - b._d; });
+      };
+
+      self.draw = function () {
+        var ctx = self.ctx, Sz = self.size, cx = Sz / 2, cy = Sz / 2, R = Sz / 2 - 10;
+        ctx.clearRect(0, 0, Sz, Sz);
+        ctx.fillStyle = cssv("--panel-inset"); ctx.beginPath(); ctx.arc(cx, cy, R + 6, 0, 7); ctx.fill();
+        /* range rings */
+        ctx.strokeStyle = cssv("--map-grat"); ctx.fillStyle = cssv("--ink-faint");
+        ctx.font = "9px ui-monospace, monospace"; ctx.textAlign = "left";
+        var rings = 4;
+        for (var i = 1; i <= rings; i++) {
+          var rr = R * i / rings;
+          ctx.globalAlpha = 0.7; ctx.lineWidth = (i === rings) ? 1.1 : 0.6;
+          ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.fillText(fmt(self.range * i / rings, 0) + (i === rings ? " " + self.unit : ""), cx + 3, cy - rr + 11);
+        }
+        /* cardinal spokes */
+        ctx.strokeStyle = cssv("--line-soft"); ctx.lineWidth = 0.6;
+        [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(function (d) {
+          ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + d[0] * R, cy + d[1] * R); ctx.stroke();
+        });
+        ctx.fillStyle = cssv("--ink-dim"); ctx.font = "bold 11px ui-sans-serif, system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("N", cx, cy - R + 8); ctx.fillText("S", cx, cy + R - 8);
+        ctx.fillText("E", cx + R - 8, cy); ctx.fillText("W", cx - R + 8, cy);
+
+        /* optional sweep */
+        if (self._sweep !== undefined && !self._reduced) {
+          var a0 = self._sweep;
+          var grad = ctx.createConicGradient ? null : null;
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(a0);
+          var g = ctx.createLinearGradient(0, 0, 0, -R);
+          g.addColorStop(0, "rgba(95,208,168,0.0)");
+          g.addColorStop(1, cssv("--phosphor"));
+          ctx.globalAlpha = 0.18;
+          ctx.fillStyle = cssv("--phosphor");
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, -Math.PI / 2 - 0.22, -Math.PI / 2); ctx.closePath(); ctx.fill();
+          ctx.globalAlpha = 1; ctx.restore();
+        }
+
+        /* blips */
+        self.blips = [];
+        var inrange = self.withinRange();
+        var milesPerDeg = 69.0;
+        var scale = R / self.range;
+        inrange.forEach(function (r, idx) {
+          var dN = (r.lat - self.center.lat) * milesPerDeg;
+          var dE = (r.lon - self.center.lon) * milesPerDeg * Math.cos(self.center.lat * OP.DEG);
+          if (self.unit === "km") { dN *= 1.60934; dE *= 1.60934; }
+          var x = cx + dE * scale, y = cy - dN * scale;
+          var col = modeColor(r.modes);
+          var sel = (self.selected === r);
+          ctx.beginPath(); ctx.arc(x, y, sel ? 6 : 4, 0, 7); ctx.fillStyle = col; ctx.fill();
+          if (sel) { ctx.strokeStyle = cssv("--hot"); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.stroke(); }
+          if (idx < 8 || sel) {
+            ctx.fillStyle = cssv("--ink-dim"); ctx.font = "9px ui-monospace, monospace"; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+            ctx.fillText(r.call, x + 7, y + 3);
+          }
+          self.blips.push({ x: x, y: y, r: r });
+        });
+        /* center */
+        ctx.fillStyle = cssv("--amber"); ctx.beginPath(); ctx.arc(cx, cy, 4, 0, 7); ctx.fill();
+        ctx.strokeStyle = cssv("--amber"); ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.arc(cx, cy, 7, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
+      };
+
+      function modeColor(modes) {
+        if (modes.indexOf("DMR") >= 0) return "#f5a623";
+        if (modes.indexOf("Fusion") >= 0) return "#9ccf4a";
+        if (modes.indexOf("D-STAR") >= 0) return "#4ea3c9";
+        if (modes.indexOf("P25") >= 0) return "#e8506a";
+        return "#5fd0a8";
+      }
+
+      /* ---- real map (Leaflet + CARTO tiles); the scope is the offline fallback ---- */
+      self.leaflet = "idle"; self.lmap = null; self.tileLayer = null; self.markerLayer = null; self._markers = []; self._leafletCbs = [];
+      function tileURL() {
+        return document.documentElement.getAttribute("data-theme") === "day"
+          ? "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          : "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+      }
+      function zoomForRange() {
+        var miles = self.unit === "km" ? self.range / 1.60934 : self.range;
+        if (miles <= 8) return 12; if (miles <= 18) return 11; if (miles <= 40) return 10;
+        if (miles <= 90) return 9; if (miles <= 180) return 8; return 7;
+      }
+      function ensureLeaflet(cb) {
+        if (window.L) { cb(true); return; }
+        if (self.leaflet === "failed") { cb(false); return; }
+        if (self.leaflet === "loading") { self._leafletCbs.push(cb); return; }
+        self.leaflet = "loading"; self._leafletCbs = [cb];
+        var css = document.createElement("link"); css.rel = "stylesheet";
+        css.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css";
+        document.head.appendChild(css);
+        var s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js";
+        var settled = false;
+        function finish(ok) {
+          if (settled) return; settled = true;
+          ok = ok && !!window.L; self.leaflet = ok ? "ready" : "failed";
+          self._leafletCbs.forEach(function (f) { try { f(ok); } catch (e) {} });
+          self._leafletCbs = [];
+        }
+        s.onload = function () { finish(true); };
+        s.onerror = function () { finish(false); };
+        document.head.appendChild(s);
+        setTimeout(function () { finish(!!window.L); }, 7000);
+      }
+
+      self.setView = function (v) {
+        self.view = v; OP.store.set("rptr.view", v);
+        mapBtn.className = "btn" + (v === "map" ? " primary" : " ghost");
+        scopeBtn.className = "btn" + (v === "scope" ? " primary" : " ghost");
+        document.getElementById("rp-scope-wrap").style.display = v === "scope" ? "block" : "none";
+        document.getElementById("rp-map").style.display = v === "map" ? "block" : "none";
+        if (v === "map") self.renderMap(); else { document.getElementById("rp-mapnote").textContent = ""; self.draw(); self.startSweep(); }
+      };
+      mapBtn.addEventListener("click", function () { self.setView("map"); });
+      scopeBtn.addEventListener("click", function () { self.setView("scope"); });
+
+      self.renderMap = function () {
+        var note = document.getElementById("rp-mapnote");
+        if (!window.L) note.textContent = "Loading map ...";
+        ensureLeaflet(function (ok) {
+          if (!ok) {
+            document.getElementById("rp-map").style.display = "none";
+            document.getElementById("rp-scope-wrap").style.display = "block";
+            self.view = "scope"; OP.store.set("rptr.view", "scope");
+            mapBtn.className = "btn ghost"; scopeBtn.className = "btn primary";
+            note.textContent = "Map tiles are offline right now, so the scope is shown instead. The map returns when you are back online.";
+            self.draw(); self.startSweep();
+            return;
+          }
+          note.textContent = "";
+          var div = document.getElementById("rp-map");
+          var c = self.center || { lat: 39.652, lon: -78.762 };
+          if (!self.lmap) {
+            self.lmap = window.L.map(div, { zoomControl: true, attributionControl: true }).setView([c.lat, c.lon], zoomForRange());
+            self.tileLayer = window.L.tileLayer(tileURL(), { subdomains: "abcd", maxZoom: 19, attribution: "&copy; OpenStreetMap, &copy; CARTO" }).addTo(self.lmap);
+            self.markerLayer = window.L.layerGroup().addTo(self.lmap);
+          } else {
+            self.lmap.invalidateSize();
+            self.lmap.setView([c.lat, c.lon], self.lmap.getZoom());
+          }
+          self.plotMap();
+        });
+      };
+
+      self.plotMap = function () {
+        if (!self.lmap || !window.L) return;
+        self.markerLayer.clearLayers(); self._markers = [];
+        var c = self.center;
+        if (c) {
+          window.L.circleMarker([c.lat, c.lon], { radius: 6, color: "#f5a623", weight: 2, fillColor: "#f5a623", fillOpacity: 1 }).addTo(self.markerLayer).bindTooltip("You");
+          var rMeters = self.range * (self.unit === "km" ? 1000 : 1609.34);
+          window.L.circle([c.lat, c.lon], { radius: rMeters, color: "#f5a623", weight: 1, opacity: 0.6, fill: false, dashArray: "5 6" }).addTo(self.markerLayer);
+        }
+        self.withinRange().forEach(function (r) {
+          var col = modeColor(r.modes);
+          var m = window.L.circleMarker([r.lat, r.lon], { radius: 6, color: col, weight: 2, fillColor: col, fillOpacity: 0.55 });
+          m.bindPopup("<b>" + r.call + "</b><br>" + fmt(r.out, 4) + " MHz &middot; " + r.modes.join(" ") + "<br>" + fmt(r._d, 1) + " " + self.unit + " at " + fmt(r._brg, 0) + " deg");
+          m.on("click", function () { self.select(r); });
+          m.addTo(self.markerLayer);
+          self._markers.push({ r: r, m: m });
+        });
+      };
+
+      self.cv.addEventListener("click", function (ev) {
+        var rect = self.cv.getBoundingClientRect();
+        var mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
+        var best = null, bd = 14;
+        self.blips.forEach(function (b) {
+          var d = Math.hypot(b.x - mx, b.y - my);
+          if (d < bd) { bd = d; best = b.r; }
+        });
+        if (best) self.select(best);
+      });
+
+      self.select = function (r) {
+        self.selected = r;
+        if (self.view === "scope") self.draw();
+        else if (self.lmap && window.L) {
+          self._markers.forEach(function (it) { it.m.setStyle({ radius: it.r === r ? 9 : 6, weight: it.r === r ? 3 : 2 }); });
+          var found = self._markers.filter(function (it) { return it.r === r; })[0];
+          if (found) { self.lmap.panTo([r.lat, r.lon]); found.m.openPopup(); }
+        }
+        self.renderDetail(r);
+        var d = document.getElementById("rp-detail");
+        if (d && d.scrollIntoView) d.scrollIntoView({ behavior: self._reduced ? "auto" : "smooth", block: "nearest" });
+      };
+
+      self.render = function () {
+        if (self.view === "map") self.renderMap(); else self.draw();
+        var list = document.getElementById("rp-list");
+        list.innerHTML = "";
+        var inrange = self.withinRange();
+        if (!inrange.length) { list.appendChild(el("p", "note", self.repeaters.length ? "No repeaters within range. Widen the range above." : "Nothing plotted yet.")); return; }
+        inrange.slice(0, 60).forEach(function (r) {
+          var card = el("div", "meter");
+          card.style.cursor = "pointer"; card.style.padding = "9px 11px";
+          var col = modeColor(r.modes);
+          card.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">' +
+              '<span class="mv" style="font-size:1rem;color:' + col + '">' + r.call + '</span>' +
+              '<span class="mono" style="font-size:0.82rem;color:var(--ink)">' + fmt(r.out, 4) + '</span>' +
+            '</div>' +
+            '<div class="mu" style="display:flex;justify-content:space-between;gap:8px">' +
+              '<span>' + r.modes.join(" ") + (r.toneUp ? " &middot; " + r.toneUp : "") + '</span>' +
+              '<span>' + fmt(r._d, 1) + " " + self.unit + " &middot; " + fmt(r._brg, 0) + '&deg;</span>' +
+            '</div>';
+          card.addEventListener("click", function () { self.select(r); });
+          list.appendChild(card);
+        });
+      };
+
+      self.renderDetail = function (r) {
+        var d = document.getElementById("rp-detail");
+        var off = (r.offset != null) ? (r.offset > 0 ? "+" : "") + fmt(r.offset, 3) + " MHz" : "?";
+        var dir = (r.offset != null) ? (r.offset > 0 ? "plus" : "minus") : "";
+        var modeStr = r.modes.join(", ");
+        if (r.cc) modeStr += " (CC " + r.cc + (r.dmrid ? ", ID " + r.dmrid : "") + ")";
+        var nodes = [];
+        if (r.echolink) nodes.push("EchoLink " + r.echolink);
+        if (r.irlp) nodes.push("IRLP " + r.irlp);
+        if (r.allstar) nodes.push("AllStar " + r.allstar);
+        var parsedNets = parseNets(r.notes);
+        var userNets = getUserNets(r);
+
+        var dist = r._d != null ? fmt(r._d, 1) + " " + self.unit + " at " + fmt(r._brg, 0) + " deg" : "";
+
+        var html =
+          '<div class="meter">' +
+          '<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">' +
+            '<span class="mv amber" style="font-size:1.4rem">' + r.call + '</span>' +
+            '<span class="mu">' + (r.city ? r.city + ", " : "") + (r.state || "") + (dist ? " &middot; " + dist : "") + '</span>' +
+          '</div>' +
+          '<div class="grid3" style="margin-top:12px">' +
+            cell("Output", fmt(r.out, 4) + " MHz") +
+            cell("Input", r.inp ? fmt(r.inp, 4) + " MHz" : "?") +
+            cell("Offset", off + (dir ? " (" + dir + ")" : "")) +
+            cell("Uplink tone", r.toneUp ? r.toneUp + " Hz" : "none / CSQ") +
+            cell("Downlink tone", r.toneDown ? r.toneDown + " Hz" : "none") +
+            cell("Mode", modeStr) +
+          '</div>' +
+          (nodes.length ? '<div class="mu" style="margin-top:10px"><b style="color:var(--ink)">Connect remotely:</b> ' + nodes.join(" &middot; ") + '</div>' : '') +
+          (r.use || r.status ? '<div class="mu" style="margin-top:6px">' + [r.use, r.status].filter(Boolean).join(" &middot; ") + (r.sponsor ? " &middot; " + r.sponsor : "") + '</div>' : '') +
+          (r.notes ? '<div class="note" style="margin-top:10px"><b style="color:var(--ink-dim)">Notes:</b> ' + escapeHtml(r.notes) + '</div>' : '') +
+          '<hr class="divider">' +
+          '<div class="label" style="margin-bottom:8px">Net schedule</div>' +
+          '<div id="rp-nets"></div>' +
+          '</div>';
+        d.innerHTML = html;
+
+        var netHost = d.querySelector("#rp-nets");
+        if (parsedNets.length) {
+          parsedNets.forEach(function (n) {
+            netHost.appendChild(el("div", "lex-item", '<span class="def"><span class="chip">from notes</span> ' + escapeHtml(n) + '</span>'));
+          });
+        }
+        if (userNets.length) {
+          userNets.forEach(function (n, i) {
+            var item = el("div", "lex-item");
+            item.style.display = "flex"; item.style.justifyContent = "space-between"; item.style.alignItems = "center";
+            item.innerHTML = '<span class="def"><span class="term" style="font-size:0.8rem">' + n.day + " " + n.time + '</span> ' + escapeHtml(n.name || "Net") + '</span>';
+            var del = el("button", "btn ghost", "del"); del.style.padding = "2px 8px"; del.style.fontSize = "0.58rem";
+            del.addEventListener("click", function () { delUserNet(r, i); self.renderDetail(r); });
+            item.appendChild(del);
+            netHost.appendChild(item);
+          });
+        }
+        if (!parsedNets.length && !userNets.length) {
+          netHost.appendChild(el("p", "note", "No net on record. Open data rarely lists nets, so add what you know below and it will be saved for this repeater."));
+        }
+
+        var form = el("div", "row"); form.style.marginTop = "10px";
+        form.innerHTML =
+          '<div class="field" style="flex:0 1 110px"><label>Day</label><select id="rp-netday"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option><option>Daily</option></select></div>' +
+          '<div class="field" style="flex:0 1 110px"><label>Time</label><input id="rp-nettime" type="text" placeholder="20:00 local"></div>' +
+          '<div class="field" style="flex:1 1 140px"><label>Net name</label><input id="rp-netname" type="text" placeholder="Club net"></div>';
+        var addNet = el("div", "field"); addNet.appendChild(el("label", "", "&nbsp;"));
+        var addNetBtn = el("button", "btn", "Add net"); addNet.appendChild(addNetBtn); form.appendChild(addNet);
+        netHost.appendChild(form);
+        addNetBtn.addEventListener("click", function () {
+          var day = d.querySelector("#rp-netday").value;
+          var time = d.querySelector("#rp-nettime").value.trim();
+          var name = d.querySelector("#rp-netname").value.trim();
+          if (!time) { return; }
+          addUserNet(r, { day: day, time: time, name: name });
+          self.renderDetail(r);
+        });
+      };
+
+      function cell(k, v) {
+        return '<div class="meter" style="padding:9px 11px"><div class="mk">' + k + '</div><div class="mv" style="font-size:0.98rem">' + v + '</div></div>';
+      }
+      function escapeHtml(s) { return ("" + s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+      function netKey(r) { return (r.call || "") + "_" + (r.out || ""); }
+      function getUserNets(r) { var all = OP.store.getJSON("rptr.nets", {}); return all[netKey(r)] || []; }
+      function addUserNet(r, n) { var all = OP.store.getJSON("rptr.nets", {}); var k = netKey(r); (all[k] = all[k] || []).push(n); OP.store.setJSON("rptr.nets", all); }
+      function delUserNet(r, i) { var all = OP.store.getJSON("rptr.nets", {}); var k = netKey(r); if (all[k]) { all[k].splice(i, 1); OP.store.setJSON("rptr.nets", all); } }
+
+      /* sweep animation, light and visibility-aware */
+      self._reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      self._sweep = 0; self._last = 0;
+      function loop(ts) {
+        var active = document.getElementById("mod-repeater").classList.contains("active");
+        if (!active || self._reduced || self.view !== "scope") { self._raf = null; return; }
+        if (ts - self._last > 60) { self._sweep += 0.06; if (self._sweep > Math.PI * 2) self._sweep -= Math.PI * 2; self._last = ts; self.draw(); }
+        self._raf = requestAnimationFrame(loop);
+      }
+      self.startSweep = function () { if (!self._reduced && !self._raf && self.view === "scope") self._raf = requestAnimationFrame(loop); };
+
+      OP.on("theme", function () { self.draw(); if (self.tileLayer && window.L) self.tileLayer.setUrl(tileURL()); });
+      OP.on("station", function () {
+        if (!readCenter() && OP.state.grid) { var g = OP.gridToLatLon(OP.state.grid); if (g) { wrap.querySelector("#rp-lat").value = fmt(g.lat, 5); wrap.querySelector("#rp-lon").value = fmt(g.lon, 5); self.center = readCenter(); autoStates(); self.draw(); } }
+      });
+
+      /* initial view display; Leaflet loads lazily when the module is first shown */
+      mapBtn.className = "btn" + (self.view === "map" ? " primary" : " ghost");
+      scopeBtn.className = "btn" + (self.view === "scope" ? " primary" : " ghost");
+      document.getElementById("rp-scope-wrap").style.display = self.view === "scope" ? "block" : "none";
+      document.getElementById("rp-map").style.display = self.view === "map" ? "block" : "none";
+      self.draw();
+    },
+    onShow: function () { if (this.render) this.render(); if (this.startSweep) this.startSweep(); }
+  });
+
+})();
+
+</script>
+<script>
+/* ===================== OPERATOR modules (2 of 2) ===================== */
+(function () {
+  "use strict";
+  var OP = window.OP;
+  var fmt = OP.fmt, pad = OP.pad;
+  function el(tag, cls, html) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+
+  /* ===================== AZIMUTH ===================== */
+  OP.register("azimuth", {
+    label: "AZIMUTH",
+    tagline: "Grid to grid: distance and the heading to point your beam.",
+    init: function (body) {
+      var self = this;
+      var wrap = el("div", "grid2");
+
+      var left = el("div", "stack");
+      left.innerHTML =
+        '<div class="row">' +
+          '<div class="field" style="flex:1 1 130px"><label>From grid</label><input id="az-from" type="text" placeholder="FM19"></div>' +
+          '<div class="field" style="flex:1 1 130px"><label>To grid</label><input id="az-to" type="text" placeholder="IO91"></div>' +
+        '</div>' +
+        '<div class="row"><button class="btn ghost" id="az-useme">Use my grid as origin</button></div>';
+      var meters = el("div", "grid2");
+      meters.innerHTML =
+        '<div class="meter"><div class="mk">Distance</div><div class="mv amber" id="az-km">--</div><div class="mu" id="az-mi">miles</div></div>' +
+        '<div class="meter"><div class="mk">Short-path heading</div><div class="mv" id="az-sp">--</div><div class="mu">degrees true</div></div>' +
+        '<div class="meter"><div class="mk">Long-path heading</div><div class="mv" id="az-lp">--</div><div class="mu">degrees true</div></div>' +
+        '<div class="meter"><div class="mk">Reverse heading</div><div class="mv" id="az-rev">--</div><div class="mu">they point at you</div></div>';
+      left.appendChild(meters);
+      wrap.appendChild(left);
+
+      var right = el("div"); right.style.textAlign = "center";
+      var S = Math.min((body.clientWidth || 600) / 2 - 20, 280); if (S < 220) S = Math.min(body.clientWidth || 280, 280);
+      this.size = S;
+      this.cv = document.createElement("canvas");
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      this.cv.width = S * dpr; this.cv.height = S * dpr;
+      this.cv.style.width = S + "px"; this.cv.style.height = S + "px";
+      this.ctx = this.cv.getContext("2d"); this.ctx.scale(dpr, dpr);
+      right.appendChild(this.cv);
+      right.appendChild(el("div", "legend", '<span><b>compass rose</b> shows the short-path heading</span>'));
+      wrap.appendChild(right);
+      body.appendChild(wrap);
+
+      wrap.querySelector("#az-useme").addEventListener("click", function () {
+        wrap.querySelector("#az-from").value = OP.state.grid || "";
+        self.update();
+      });
+      ["az-from","az-to"].forEach(function (id) { wrap.querySelector("#" + id).addEventListener("input", function () { self.update(); }); });
+      if (OP.state.grid) wrap.querySelector("#az-from").value = OP.state.grid;
+
+      this.update = function () {
+        var a = OP.gridToLatLon(wrap.querySelector("#az-from").value);
+        var b = OP.gridToLatLon(wrap.querySelector("#az-to").value);
+        if (!a || !b) { self.drawRose(null); return; }
+        var gc = OP.greatCircle(a.lat, a.lon, b.lat, b.lon);
+        var rev = OP.greatCircle(b.lat, b.lon, a.lat, a.lon);
+        document.getElementById("az-km").textContent = fmt(gc.km, 0) + " km";
+        document.getElementById("az-mi").textContent = fmt(gc.mi, 0) + " miles";
+        document.getElementById("az-sp").textContent = fmt(gc.bearing, 0) + " deg";
+        document.getElementById("az-lp").textContent = fmt((gc.bearing + 180) % 360, 0) + " deg";
+        document.getElementById("az-rev").textContent = fmt(rev.bearing, 0) + " deg";
+        self.drawRose(gc.bearing);
+      };
+      this.drawRose = function (brg) {
+        var ctx = this.ctx, S = this.size, cx = S / 2, cy = S / 2, R = S / 2 - 14;
+        function v(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+        ctx.clearRect(0, 0, S, S);
+        ctx.fillStyle = v("--panel-inset"); ctx.beginPath(); ctx.arc(cx, cy, R + 6, 0, 7); ctx.fill();
+        ctx.strokeStyle = v("--line"); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+        ctx.strokeStyle = v("--map-grat");
+        for (var d = 0; d < 360; d += 30) {
+          var rad = (d - 90) * OP.DEG;
+          var inner = (d % 90 === 0) ? R - 14 : R - 8;
+          ctx.lineWidth = (d % 90 === 0) ? 1.4 : 0.7;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(rad) * R, cy + Math.sin(rad) * R);
+          ctx.lineTo(cx + Math.cos(rad) * inner, cy + Math.sin(rad) * inner);
+          ctx.stroke();
+        }
+        ctx.fillStyle = v("--ink-dim"); ctx.font = "bold 11px ui-sans-serif, system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        [["N",0],["E",90],["S",180],["W",270]].forEach(function (c) {
+          var rad = (c[1] - 90) * OP.DEG;
+          ctx.fillText(c[0], cx + Math.cos(rad) * (R - 24), cy + Math.sin(rad) * (R - 24));
+        });
+        if (brg !== null && brg !== undefined) {
+          var rr = (brg - 90) * OP.DEG;
+          ctx.strokeStyle = v("--hot"); ctx.lineWidth = 2.4;
+          ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(rr) * (R - 4), cy + Math.sin(rr) * (R - 4)); ctx.stroke();
+          ctx.fillStyle = v("--hot"); ctx.beginPath(); ctx.arc(cx + Math.cos(rr) * (R - 4), cy + Math.sin(rr) * (R - 4), 5, 0, 7); ctx.fill();
+          ctx.fillStyle = v("--amber"); ctx.beginPath(); ctx.arc(cx, cy, 4, 0, 7); ctx.fill();
+          ctx.fillStyle = v("--ink"); ctx.font = "bold 14px ui-monospace, monospace";
+          ctx.fillText(fmt(brg, 0) + " deg", cx, cy + R - 4);
+        }
+      };
+      this.update();
+      OP.on("theme", function () { self.update(); });
+      OP.on("station", function () { if (!wrap.querySelector("#az-from").value) wrap.querySelector("#az-from").value = OP.state.grid || ""; });
+    },
+    onShow: function () { if (this.update) this.update(); }
+  });
+
+  /* ===================== TELEGRAPH ===================== */
+  OP.register("telegraph", {
+    label: "TELEGRAPH",
+    tagline: "Send text as code, or hold the key and listen to the rhythm.",
+    morse: {
+      A:".-",B:"-...",C:"-.-.",D:"-..",E:".",F:"..-.",G:"--.",H:"....",I:"..",J:".---",
+      K:"-.-",L:".-..",M:"--",N:"-.",O:"---",P:".--.",Q:"--.-",R:".-.",S:"...",T:"-",
+      U:"..-",V:"...-",W:".--",X:"-..-",Y:"-.--",Z:"--..",
+      "0":"-----","1":".----","2":"..---","3":"...--","4":"....-","5":".....",
+      "6":"-....","7":"--...","8":"---..","9":"----.",
+      ".":".-.-.-",",":"--..--","?":"..--..","/":"-..-.","=":"-...-","+":".-.-.","-":"-....-",
+      "(":"-.--.",")":"-.--.-",":":"---...",";":"-.-.-.","\"":".-..-.","'":".----.","@":".--.-."
+    },
+    init: function (body) {
+      var self = this;
+      var wrap = el("div", "stack");
+      wrap.innerHTML =
+        '<div class="field"><label>Text to send</label><textarea id="tg-text" rows="2">CQ CQ DE ' + (OP.state.call || "N0CALL") + ' K</textarea></div>' +
+        '<div class="row">' +
+          '<div class="field" style="flex:1 1 120px"><label>Speed (WPM)</label><input id="tg-wpm" type="number" value="18" min="5" max="40"></div>' +
+          '<div class="field" style="flex:1 1 120px"><label>Farnsworth (WPM)</label><input id="tg-fw" type="number" value="18" min="5" max="40"></div>' +
+          '<div class="field" style="flex:1 1 120px"><label>Tone (Hz)</label><input id="tg-tone" type="number" value="600" min="300" max="1000"></div>' +
+        '</div>' +
+        '<div class="row"><button class="btn primary" id="tg-play">Send</button><button class="btn ghost" id="tg-stop">Stop</button>' +
+        '<button class="btn" id="tg-key">Hold to key (or space)</button></div>';
+      var lamp = el("div", "lamp-big", '<div class="lamp-dot" id="tg-lamp"></div>');
+      wrap.appendChild(lamp);
+      var rhythm = el("div", "rhythm", ""); rhythm.id = "tg-rhythm";
+      wrap.appendChild(rhythm);
+      wrap.appendChild(el("p", "note", "Code is rendered as dits and dahs above, lit in time with the tone. Farnsworth keeps characters fast while stretching the gaps, which is how most operators learn to copy."));
+      wrap.appendChild(el("hr", "divider"));
+
+      var ref = el("div");
+      ref.innerHTML = '<div class="label" style="margin-bottom:8px">Code reference</div>';
+      var grid = el("div", "lex-list");
+      Object.keys(self.morse).forEach(function (k) {
+        if (!/[A-Z0-9]/.test(k)) return;
+        var item = el("div", "lex-item",
+          '<span class="term">' + k + '</span> <span class="def mono">' + self.morse[k].replace(/\./g, "&middot;").replace(/-/g, "&minus;") + '</span>');
+        grid.appendChild(item);
+      });
+      ref.appendChild(grid);
+      wrap.appendChild(ref);
+      body.appendChild(wrap);
+
+      var ctxA = null, osc = null, gain = null, playing = false, stopFlag = false;
+      function audio() {
+        if (!ctxA) { ctxA = new (window.AudioContext || window.webkitAudioContext)(); }
+        if (ctxA.state === "suspended") ctxA.resume();
+        return ctxA;
+      }
+      function toneOn() {
+        var a = audio();
+        if (osc) return;
+        osc = a.createOscillator(); gain = a.createGain();
+        osc.frequency.value = parseFloat(wrap.querySelector("#tg-tone").value) || 600;
+        osc.type = "sine";
+        gain.gain.setValueAtTime(0.0001, a.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.25, a.currentTime + 0.005);
+        osc.connect(gain); gain.connect(a.destination); osc.start();
+        document.getElementById("tg-lamp").classList.add("on");
+      }
+      function toneOff() {
+        if (!osc) return;
+        var a = audio();
+        gain.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.005);
+        osc.stop(a.currentTime + 0.02);
+        osc = null; gain = null;
+        document.getElementById("tg-lamp").classList.remove("on");
+      }
+
+      function buildRhythm(text) {
+        var r = document.getElementById("tg-rhythm"); r.innerHTML = "";
+        var elems = [];
+        text.toUpperCase().split("").forEach(function (ch) {
+          if (ch === " ") { var g = el("span", "el gap"); g.style.width = "20px"; r.appendChild(g); elems.push(null); return; }
+          var code = self.morse[ch]; if (!code) return;
+          code.split("").forEach(function (sym) {
+            var e = el("span", "el " + (sym === "." ? "dit" : "dah"));
+            r.appendChild(e); elems.push(e);
+          });
+          var sp = el("span", "el gap"); r.appendChild(sp); elems.push(null);
+        });
+        return elems;
+      }
+
+      function sleep(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
+
+      this.send = function () {
+        if (playing) return;
+        playing = true; stopFlag = false;
+        var text = wrap.querySelector("#tg-text").value.toUpperCase();
+        var wpm = parseFloat(wrap.querySelector("#tg-wpm").value) || 18;
+        var fw = Math.min(parseFloat(wrap.querySelector("#tg-fw").value) || wpm, wpm);
+        var dit = 1200 / wpm;
+        var fdit = 1200 / fw;
+        var elems = buildRhythm(text);
+        var ei = 0;
+        (async function () {
+          var chars = text.split("");
+          for (var i = 0; i < chars.length && !stopFlag; i++) {
+            var ch = chars[i];
+            if (ch === " ") { ei++; await sleep(fdit * 7); continue; }
+            var code = self.morse[ch]; if (!code) continue;
+            for (var s = 0; s < code.length && !stopFlag; s++) {
+              var elem = elems[ei++]; if (elem) elem.classList.add("on");
+              toneOn();
+              await sleep(code[s] === "." ? dit : dit * 3);
+              toneOff();
+              if (elem) elem.classList.remove("on");
+              await sleep(dit);
+            }
+            ei++;
+            await sleep(fdit * 3 - dit);
+          }
+          toneOff(); playing = false;
+        })();
+      };
+      wrap.querySelector("#tg-play").addEventListener("click", function () { self.send(); });
+      wrap.querySelector("#tg-stop").addEventListener("click", function () { stopFlag = true; toneOff(); playing = false; });
+
+      var keyBtn = wrap.querySelector("#tg-key");
+      function keyDown(e) { e.preventDefault(); toneOn(); }
+      function keyUp(e) { e.preventDefault(); toneOff(); }
+      keyBtn.addEventListener("mousedown", keyDown);
+      keyBtn.addEventListener("mouseup", keyUp);
+      keyBtn.addEventListener("mouseleave", function () { toneOff(); });
+      keyBtn.addEventListener("touchstart", keyDown, { passive: false });
+      keyBtn.addEventListener("touchend", keyUp);
+      this._spaceHandler = function (e) {
+        if (e.code === "Space" && document.getElementById("mod-telegraph").classList.contains("active")) {
+          if (e.type === "keydown" && !e.repeat) { e.preventDefault(); toneOn(); }
+          if (e.type === "keyup") { e.preventDefault(); toneOff(); }
+        }
+      };
+      window.addEventListener("keydown", this._spaceHandler);
+      window.addEventListener("keyup", this._spaceHandler);
+    }
+  });
+
+  /* ===================== LEXICON ===================== */
+  OP.register("lexicon", {
+    label: "LEXICON",
+    tagline: "The operating shorthand, in one drawer.",
+    data: {
+      "Q codes": [
+        ["QRZ","Who is calling me?"],["QRM","Interference from other stations"],["QRN","Atmospheric noise / static"],
+        ["QSB","Your signal is fading"],["QRP","Low power / reduce power"],["QRO","High power / increase power"],
+        ["QSY","Change frequency"],["QRT","Stop sending / closing station"],["QSL","I acknowledge / confirm"],
+        ["QSO","A contact / conversation"],["QTH","My location is"],["QRL","Is this frequency busy?"],
+        ["QRV","I am ready"],["QRX","Stand by / wait"],["QRQ","Send faster"],["QRS","Send slower"],
+        ["QRG","Your exact frequency is"],["QSP","Relay to"],["QRU","I have nothing for you"]
+      ],
+      "Phonetics": [
+        ["A","Alfa"],["B","Bravo"],["C","Charlie"],["D","Delta"],["E","Echo"],["F","Foxtrot"],
+        ["G","Golf"],["H","Hotel"],["I","India"],["J","Juliett"],["K","Kilo"],["L","Lima"],
+        ["M","Mike"],["N","November"],["O","Oscar"],["P","Papa"],["Q","Quebec"],["R","Romeo"],
+        ["S","Sierra"],["T","Tango"],["U","Uniform"],["V","Victor"],["W","Whiskey"],["X","X-ray"],
+        ["Y","Yankee"],["Z","Zulu"]
+      ],
+      "Prosigns": [
+        ["AR","End of message (+)"],["SK","End of contact (silent key)"],["KN","Go ahead, named station only"],
+        ["BT","Separator / new paragraph (=)"],["AS","Wait / stand by"],["BK","Break, invite reply"],
+        ["CL","Closing station"],["CT","Start of transmission"],["SOS","Distress"],["K","Go ahead, any station"]
+      ],
+      "RST": [
+        ["R1","Unreadable"],["R3","Readable with difficulty"],["R5","Perfectly readable"],
+        ["S1","Faint, barely perceptible"],["S5","Fairly good"],["S9","Extremely strong"],
+        ["T1","Rough note (CW)"],["T9","Pure note (CW)"],["59","Standard good voice report"]
+      ],
+      "Abbreviations": [
+        ["73","Best regards"],["88","Love and kisses"],["CQ","Calling any station"],["DE","From (this is)"],
+        ["DX","Distant station"],["ES","And"],["FB","Fine business / excellent"],["HI","Laughter"],
+        ["OM","Old man (any operator)"],["YL","Young lady"],["XYL","Wife"],["PSE","Please"],
+        ["TNX","Thanks"],["UR","Your / you are"],["WX","Weather"],["RIG","Station equipment"],
+        ["RST","Readability strength tone"],["POTA","Parks on the Air"],["SOTA","Summits on the Air"]
+      ]
+    },
+    init: function (body) {
+      var self = this;
+      var wrap = el("div");
+      var search = el("input"); search.type = "text"; search.placeholder = "Search terms or meanings";
+      search.style.marginBottom = "12px";
+      wrap.appendChild(search);
+      var cats = el("div", "lex-cats");
+      var list = el("div", "lex-list");
+      var keys = Object.keys(self.data);
+      var current = keys[0];
+      keys.forEach(function (k) {
+        var c = el("div", "lex-cat" + (k === current ? " on" : ""), k);
+        c.addEventListener("click", function () {
+          current = k; search.value = "";
+          cats.querySelectorAll(".lex-cat").forEach(function (x) { x.classList.remove("on"); });
+          c.classList.add("on"); render();
+        });
+        cats.appendChild(c);
+      });
+      wrap.appendChild(cats); wrap.appendChild(list);
+      body.appendChild(wrap);
+
+      function render() {
+        var q = search.value.trim().toUpperCase();
+        list.innerHTML = "";
+        var rows = [];
+        if (q) {
+          keys.forEach(function (k) {
+            self.data[k].forEach(function (row) {
+              if (row[0].toUpperCase().indexOf(q) >= 0 || row[1].toUpperCase().indexOf(q) >= 0) rows.push(row);
+            });
+          });
+        } else {
+          rows = self.data[current];
+        }
+        rows.forEach(function (row) {
+          list.appendChild(el("div", "lex-item", '<span class="term">' + row[0] + '</span><span class="def">' + row[1] + '</span>'));
+        });
+        if (!rows.length) list.appendChild(el("p", "note", "No matches."));
+      }
+      search.addEventListener("input", render);
+      render();
+    }
+  });
+
+  /* ===================== LOGBOOK ===================== */
+  OP.register("logbook", {
+    label: "LOGBOOK",
+    tagline: "Log the contact, export the ADIF.",
+    init: function (body) {
+      var self = this;
+      self.qsos = OP.store.getJSON("log", []);
+      var wrap = el("div", "stack");
+
+      var form = el("div", "stack");
+      var row1 = el("div", "row");
+      row1.innerHTML =
+        '<div class="field" style="flex:1 1 110px"><label>Call worked</label><input id="lg-call" type="text" placeholder="W1AW"></div>' +
+        '<div class="field" style="flex:1 1 120px"><label>Date / time UTC</label><input id="lg-dt" type="datetime-local"></div>' +
+        '<div class="field" style="flex:1 1 100px"><label>Freq (MHz)</label><input id="lg-freq" type="number" step="any" placeholder="14.250"></div>' +
+        '<div class="field" style="flex:0 1 90px"><label>Band</label><input id="lg-band" type="text" readonly></div>';
+      form.appendChild(row1);
+      var row2 = el("div", "row");
+      row2.innerHTML =
+        '<div class="field" style="flex:0 1 90px"><label>Mode</label><select id="lg-mode"><option>SSB</option><option>CW</option><option>FT8</option><option>FT4</option><option>AM</option><option>FM</option><option>RTTY</option><option>PSK31</option></select></div>' +
+        '<div class="field" style="flex:0 1 80px"><label>RST sent</label><input id="lg-rs" type="text" placeholder="59"></div>' +
+        '<div class="field" style="flex:0 1 80px"><label>RST rcvd</label><input id="lg-rr" type="text" placeholder="59"></div>' +
+        '<div class="field" style="flex:1 1 90px"><label>Their grid</label><input id="lg-grid" type="text" placeholder="FN31"></div>' +
+        '<div class="field" style="flex:1 1 110px"><label>Name</label><input id="lg-name" type="text"></div>';
+      form.appendChild(row2);
+      var row3 = el("div", "row");
+      row3.innerHTML = '<div class="field" style="flex:1 1 100%"><label>Notes</label><input id="lg-notes" type="text"></div>';
+      form.appendChild(row3);
+      var btns = el("div", "row");
+      var addBtn = el("button", "btn primary", "Log contact");
+      var nowBtn = el("button", "btn ghost", "Set time to now");
+      btns.appendChild(addBtn); btns.appendChild(nowBtn);
+      form.appendChild(btns);
+      wrap.appendChild(form);
+      wrap.appendChild(el("hr", "divider"));
+
+      var tools = el("div", "row");
+      var expBtn = el("button", "btn", "Export ADIF");
+      var csvBtn = el("button", "btn", "Export CSV");
+      var clrBtn = el("button", "btn ghost", "Clear log");
+      var count = el("span", "chip", "0 QSOs"); count.id = "lg-count"; count.style.alignSelf = "center";
+      tools.appendChild(expBtn); tools.appendChild(csvBtn); tools.appendChild(clrBtn); tools.appendChild(count);
+      wrap.appendChild(tools);
+
+      var tableHost = el("div"); tableHost.style.overflowX = "auto"; tableHost.style.marginTop = "8px";
+      tableHost.id = "lg-table";
+      wrap.appendChild(tableHost);
+      body.appendChild(wrap);
+
+      function nowLocalInput() {
+        var d = new Date();
+        var off = d.getTimezoneOffset();
+        var l = new Date(d.getTime() - off * 60000);
+        return l.toISOString().slice(0, 16);
+      }
+      function setNow() {
+        var d = new Date();
+        wrap.querySelector("#lg-dt").value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      }
+      setNow();
+      nowBtn.addEventListener("click", setNow);
+      wrap.querySelector("#lg-freq").addEventListener("input", function () {
+        var f = parseFloat(this.value);
+        wrap.querySelector("#lg-band").value = f > 0 ? OP.bandFor(f) : "";
+      });
+
+      addBtn.addEventListener("click", function () {
+        var call = wrap.querySelector("#lg-call").value.trim().toUpperCase();
+        if (!call) { window.alert("A callsign is required."); return; }
+        var freq = parseFloat(wrap.querySelector("#lg-freq").value) || 0;
+        var dtLocal = wrap.querySelector("#lg-dt").value;
+        var dtUTC = dtLocal ? new Date(dtLocal) : new Date();
+        self.qsos.unshift({
+          call: call,
+          when: dtUTC.toISOString(),
+          freq: freq,
+          band: freq ? OP.bandFor(freq) : "",
+          mode: wrap.querySelector("#lg-mode").value,
+          rs: wrap.querySelector("#lg-rs").value.trim(),
+          rr: wrap.querySelector("#lg-rr").value.trim(),
+          grid: wrap.querySelector("#lg-grid").value.trim().toUpperCase(),
+          name: wrap.querySelector("#lg-name").value.trim(),
+          notes: wrap.querySelector("#lg-notes").value.trim()
+        });
+        OP.store.setJSON("log", self.qsos);
+        ["lg-call","lg-grid","lg-name","lg-notes"].forEach(function (id) { wrap.querySelector("#" + id).value = ""; });
+        setNow(); render();
+      });
+
+      clrBtn.addEventListener("click", function () {
+        if (window.confirm("Clear the entire log? This cannot be undone.")) { self.qsos = []; OP.store.setJSON("log", self.qsos); render(); }
+      });
+      expBtn.addEventListener("click", function () { download("operator-log.adi", buildADIF(), "text/plain"); });
+      csvBtn.addEventListener("click", function () { download("operator-log.csv", buildCSV(), "text/csv"); });
+
+      function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+      function adifField(name, val) { val = val || ""; return "<" + name + ":" + val.length + ">" + val + " "; }
+      function buildADIF() {
+        var out = "OPERATOR ADIF export\n<ADIF_VER:5>3.1.4\n<PROGRAMID:8>OPERATOR\n<EOH>\n";
+        self.qsos.forEach(function (q) {
+          var d = new Date(q.when);
+          var date = "" + d.getUTCFullYear() + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate());
+          var time = pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + pad2(d.getUTCSeconds());
+          out += adifField("CALL", q.call) + adifField("QSO_DATE", date) + adifField("TIME_ON", time);
+          if (q.freq) out += adifField("FREQ", "" + q.freq);
+          if (q.band) out += adifField("BAND", q.band);
+          out += adifField("MODE", q.mode);
+          if (q.rs) out += adifField("RST_SENT", q.rs);
+          if (q.rr) out += adifField("RST_RCVD", q.rr);
+          if (q.grid) out += adifField("GRIDSQUARE", q.grid);
+          if (q.name) out += adifField("NAME", q.name);
+          if (q.notes) out += adifField("COMMENT", q.notes);
+          out += "<EOR>\n";
+        });
+        return out;
+      }
+      function buildCSV() {
+        var head = "call,datetime_utc,freq_mhz,band,mode,rst_sent,rst_rcvd,grid,name,notes\n";
+        return head + self.qsos.map(function (q) {
+          return [q.call, q.when, q.freq, q.band, q.mode, q.rs, q.rr, q.grid, q.name, (q.notes || "").replace(/,/g, ";")].join(",");
+        }).join("\n");
+      }
+      function download(fn, text, type) {
+        var blob = new Blob([text], { type: type });
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob); a.download = fn; a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      }
+
+      function render() {
+        document.getElementById("lg-count").textContent = self.qsos.length + (self.qsos.length === 1 ? " QSO" : " QSOs");
+        var host = document.getElementById("lg-table");
+        if (!self.qsos.length) { host.innerHTML = '<p class="note">No contacts logged yet. Your first QSO goes here.</p>'; return; }
+        var rows = self.qsos.map(function (q, i) {
+          var d = new Date(q.when);
+          var stamp = d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1) + "-" + pad2(d.getUTCDate()) + " " + pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + "z";
+          return "<tr><td>" + q.call + "</td><td>" + stamp + "</td><td>" + (q.freq || "") + "</td><td>" + (q.band || "") + "</td><td>" + q.mode + "</td><td>" + (q.rs || "") + "/" + (q.rr || "") + "</td><td>" + (q.grid || "") + "</td><td><button class='btn ghost' data-del='" + i + "' style='padding:3px 8px;font-size:0.6rem'>del</button></td></tr>";
+        }).join("");
+        host.innerHTML = '<table class="log"><thead><tr><th>Call</th><th>UTC</th><th>MHz</th><th>Band</th><th>Mode</th><th>RST s/r</th><th>Grid</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+        host.querySelectorAll("[data-del]").forEach(function (b) {
+          b.addEventListener("click", function () {
+            self.qsos.splice(parseInt(b.dataset.del, 10), 1);
+            OP.store.setJSON("log", self.qsos); render();
+          });
+        });
+      }
+      render();
+    }
+  });
+
+  /* ===================== boot ===================== */
+  OP.boot();
+
+})();
+
+</script>
+</body>
+</html>
